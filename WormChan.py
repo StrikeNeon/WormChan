@@ -98,7 +98,10 @@ def thread_task(x):
     print(thread)
     for i in thread:
         print(i)
-        get_resources(relevants[x],i)
+        try:
+            get_resources(relevants[x],i)
+        except urllib.error.HTTPError:
+            pass
     print(relevants[x]+ ' taken')
       
     
