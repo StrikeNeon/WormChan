@@ -101,6 +101,10 @@ def thread_task(x):
         try:
             get_resources(relevants[x],i)
         except urllib.error.HTTPError:
+            print('missing link')
+            pass
+        except PermissionError:
+            print('access denied')
             pass
     print(relevants[x]+ ' taken')
       
