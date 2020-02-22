@@ -74,22 +74,22 @@ def get_resources(boardNAME,thread):
             try:
                 if '.jpg' or '.png' in ext:
                     urllib.request.urlretrieve(image_url, pic_folder+'/{}'.format(post['tim'])+ ext)
-                elif '.gif' in ext:
+                if '.gif' in ext:
                     urllib.request.urlretrieve(image_url, gif_folder+'/{}'.format(post['tim'])+ ext)
-                elif '.webm' in ext:
+                if '.webm' in ext:
                     urllib.request.urlretrieve(image_url, webm_folder+'/{}'.format(post['tim'])+ ext)
-                elif '.swf' in ext:
+                if '.swf' in ext:
                     urllib.request.urlretrieve(image_url, swf_folder+'/{}'.format(post['tim'])+ ext)
-                elif '.pdf' in ext:
+                if '.pdf' in ext:
                     urllib.request.urlretrieve(image_url, pdf_folder+'/{}'.format(post['tim'])+ ext)
-                elif '666' in number:
+                if '666' in number:
                     urllib.request.urlretrieve(image_url, SATAN_folder+'/{}'.format(number)+ ext)
                 else:
                     pass
             except urllib.error.ContentTooShortError:
                 print('urlopen error retrieval incomplete')
 
-relevants = [ '/sci/', '/x/', '/g/','/tg/','/s4s/','/bant/']
+relevants = [ ]
 def thread_task(x):
     print('taking '+ relevants[x])
     thread = catalog_list(relevants[x])
