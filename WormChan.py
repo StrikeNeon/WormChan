@@ -89,8 +89,6 @@ def get_resources(boardNAME,thread):
             except urllib.error.ContentTooShortError:
                 print('urlopen error retrieval incomplete')
 
-#relevants = ['/sci/','/mu/', '/x/', '/k/', '/m/', '/g/', '/tg/' '/s4s/','/bant/']  
-#relevants = ['/sci/', '/x/', '/g/', '/tg/' '/s4s/','/bant/'] 
 relevants = [ '/sci/', '/x/', '/g/','/tg/','/s4s/','/bant/']
 def thread_task(x):
     print('taking '+ relevants[x])
