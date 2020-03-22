@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 
+
 #start of import list
 import urllib
 import urllib.request
 import json
 import requests
-
-
 import threading
 import os
 #end of import list
@@ -73,54 +72,75 @@ def get_resources(boardNAME,thread):
             print(image_url)
             try:
                 if '.jpg' or '.png' in ext:
-                    urllib.request.urlretrieve(image_url, pic_folder+'/{}'.format(post['tim'])+ ext)
+                    if ('{}'.format(post['tim'])+ext) not in pic_folder:
+                        urllib.request.urlretrieve(image_url, pic_folder+'/{}'.format(post['tim'])+ ext)
+                    else: pass
                 if '.gif' in ext:
-                    urllib.request.urlretrieve(image_url, gif_folder+'/{}'.format(post['tim'])+ ext)
+                    if ('{}'.format(post['tim'])+ext) not in gif_folder:
+                        urllib.request.urlretrieve(image_url, gif_folder+'/{}'.format(post['tim'])+ ext)
+                    else: pass
                 if '.webm' in ext:
-                    urllib.request.urlretrieve(image_url, webm_folder+'/{}'.format(post['tim'])+ ext)
+                    if ('{}'.format(post['tim'])+ext) not in webm_folder:
+                        urllib.request.urlretrieve(image_url, webm_folder+'/{}'.format(post['tim'])+ ext)
+                    else: pass
                 if '.swf' in ext:
-                    urllib.request.urlretrieve(image_url, swf_folder+'/{}'.format(post['tim'])+ ext)
+                    if ('{}'.format(post['tim'])+ext) not in swf_folder:
+                        urllib.request.urlretrieve(image_url, swf_folder+'/{}'.format(post['tim'])+ ext)
+                    else: pass
                 if '.pdf' in ext:
-                    urllib.request.urlretrieve(image_url, pdf_folder+'/{}'.format(post['tim'])+ ext)
+                    if ('{}'.format(post['tim'])+ext) not in pdf_folder:
+                        urllib.request.urlretrieve(image_url, pdf_folder+'/{}'.format(post['tim'])+ ext)
+                    else: pass
                 if '666' in number:
-                    urllib.request.urlretrieve(image_url, SATAN_folder+'/{}'.format(number)+ ext)
+                     if ('{}'.format(number)+ext) not in SATAN_folder:
+                         urllib.request.urlretrieve(image_url, SATAN_folder+'/{}'.format(number)+ ext)
+                     else: pass
+                 
                 else:
                     pass
             except urllib.error.ContentTooShortError:
                 print('urlopen error retrieval incomplete')
 
-relevants = [ ]
-def thread_task(x):
-    print('taking '+ relevants[x])
-    thread = catalog_list(relevants[x])
+
+relevants = []
+
+
+def board_task(x):
+    thread = catalog_list(x)
     print(thread)
     for i in thread:
         print(i)
         try:
-            get_resources(relevants[x],i)
+            get_resources(x,i)
         except urllib.error.HTTPError:
             print('missing link')
             pass
         except PermissionError:
             print('access denied')
-            pass
-    print(relevants[x]+ ' taken')
-      
+            pass 
+    print(x + 'taken')
+
     
 def memeater():
-    if len(relevants)%2==0:
-        for i in range (0, len(relevants), 2):
-            t0 = threading.Thread(target = thread_task, args = (i,))
-            t1 = threading.Thread(target = thread_task, args = (i+1,))
-        
+    run = True
+    while run:
+        if len(relevants)>1:
+            t0 = threading.Thread(target = board_task, args = (relevants.pop(-1),))
+            t1 = threading.Thread(target = board_task, args = (relevants.pop(-1),))
             t0.start()
             t1.start()
-        
             t0.join()
             t1.join()
-        
-
-
-        print('mems taken')
+        else:
+            if len(relevants) == 1:
+                t0 = threading.Thread(target = board_task, args = (relevants.pop(-1),))
+                t0.start()
+                t0.join()
+                print('mems taken')
+                run = False
+            else:
+                print('mems taken')
+                run = False
         
 memeater()
+#ConnectionResetError
