@@ -133,9 +133,9 @@ def memeater():
             t1.join()
         else:
             if len(relevants) == 1:
-                t0 = threading.Thread(target = board_task, args = (relevants.pop(-1),))
-                t0.start()
-                t0.join()
+                t2 = threading.Thread(target = board_task, args = (relevants.pop(-1),))
+                t2.start()
+                t2.join()
                 print('mems taken')
                 run = False
             else:
@@ -143,4 +143,3 @@ def memeater():
                 run = False
         
 memeater()
-#ConnectionResetError
