@@ -1,32 +1,24 @@
 # -*- coding: utf-8 -*-
 
 
-#start of import list
-import urllib
-import urllib.request
+# start of import list
 import json
 import requests
-import threading
-import os
-#end of import list
+from joblib import Parallel, delayed
+from minio_utils import client, save_to_minio
+from consts import (pic_folder, gif_folder,
+                    swf_folder, webm_folder,
+                    pdf_folder, SATAN_folder)
+from loguru import logger
+# end of import list
 
-#getting program and resouce paths
-scriptDIR = os.path.dirname(__file__)
-pic_folder = os.path.join(scriptDIR, 'PICS')
-text_folder = os.path.join(scriptDIR, 'TEXTS')
-pdf_folder = os.path.join(scriptDIR, 'PDFS')
-swf_folder = os.path.join(scriptDIR, 'SWF')
-webm_folder = os.path.join(scriptDIR, 'WEBM')
-gif_folder = os.path.join(scriptDIR, 'GIFS')
-tesfolder = os.path.join(scriptDIR, 'test')
-SATAN_folder = os.path.join(scriptDIR, '666')
+# ------------------------------------------------------------------------------
+# Working code below
+# ------------------------------------------------------------------------------
 
-#------------------------------------------------------------------------------
-#Working code below
-#------------------------------------------------------------------------------
 
 def catalog_list(boardNAME):
-    url = 'http://a.4cdn.org'+boardNAME+'catalog.json'
+    url = f'http://a.4cdn.org{boardNAME}catalog.json'
     responce = requests.get(url)
     threads = []
     if responce:
@@ -39,25 +31,26 @@ def catalog_list(boardNAME):
                     continue
     return threads
 
-def get_thread(boardNAME,thread):
-    url = 'http://a.4cdn.org'+boardNAME+'thread/'+thread+'.json'
-    response = urllib.request.urlopen(url)
-    output = response.read().decode('utf-8')
+
+def get_thread(boardNAME, thread):
+    url = f'http://a.4cdn.org/{boardNAME}/thread/{thread}.json'
+    response = requests.get(url)
+    output = response.content.decode('utf-8')
     if output:
         # Parse for success or failure
         out = json.loads(output)
         for post in out['posts']:
             try:
-                print(thread['sub'])
-                print(post['com'])
-                print("-------------------------------------")
+                logger.debug(thread['sub'])
+                logger.debug(post['com'])
             except KeyError:
-                    continue
+                continue
 
-def get_resources(boardNAME,thread):
-    url = 'http://a.4cdn.org/'+boardNAME+'/thread/'+thread+'.json'
-    response = urllib.request.urlopen(url)
-    output = response.read().decode('utf-8')
+
+def get_resources(boardNAME, thread):
+    url = f'http://a.4cdn.org/{boardNAME}/thread/{thread}.json'
+    response = requests.get(url)
+    output = response.content.decode('utf-8')
     if output:
         # Parse for success or failure
         out = json.loads(output)
@@ -68,78 +61,85 @@ def get_resources(boardNAME,thread):
                 number = str(post['no'])
             except KeyError:
                 continue
-            image_url = 'http://i.4cdn.org' + boardNAME+'' + tim + ext
-            print(image_url)
+            image_url = f'http://i.4cdn.org{boardNAME}{tim}{ext}'
+            logger.debug(image_url)
             try:
-                if '.jpg' or '.png' in ext:
-                    if ('{}'.format(post['tim'])+ext) not in pic_folder:
-                        urllib.request.urlretrieve(image_url, pic_folder+'/{}'.format(post['tim'])+ ext)
-                    else: pass
+                if '.jpg' in ext or '.png' in ext:
+                    if f'{tim+ext}' not in pic_folder:
+                        content_pic = requests.get(image_url).content
+                        save_to_minio(client, pic_folder,
+                                      f'{tim+ext}', content_pic,
+                                      len(content_pic))
                 if '.gif' in ext:
-                    if ('{}'.format(post['tim'])+ext) not in gif_folder:
-                        urllib.request.urlretrieve(image_url, gif_folder+'/{}'.format(post['tim'])+ ext)
-                    else: pass
+                    if f'{tim+ext}' not in gif_folder:
+                        content_gif = requests.get(image_url).content
+                        save_to_minio(client, gif_folder,
+                                      f'{tim+ext}', content_gif,
+                                      len(content_gif))
                 if '.webm' in ext:
-                    if ('{}'.format(post['tim'])+ext) not in webm_folder:
-                        urllib.request.urlretrieve(image_url, webm_folder+'/{}'.format(post['tim'])+ ext)
-                    else: pass
+                    if f'{tim+ext}' not in webm_folder:
+                        content_webm = requests.get(image_url).content
+                        save_to_minio(client, webm_folder,
+                                      f'{tim+ext}', content_webm,
+                                      len(content_webm))
                 if '.swf' in ext:
-                    if ('{}'.format(post['tim'])+ext) not in swf_folder:
-                        urllib.request.urlretrieve(image_url, swf_folder+'/{}'.format(post['tim'])+ ext)
-                    else: pass
+                    if f'{tim+ext}' not in swf_folder:
+                        content_swf = requests.get(image_url).content
+                        save_to_minio(client, swf_folder,
+                                      f'{tim+ext}', content_swf,
+                                      len(content_swf))
                 if '.pdf' in ext:
-                    if ('{}'.format(post['tim'])+ext) not in pdf_folder:
-                        urllib.request.urlretrieve(image_url, pdf_folder+'/{}'.format(post['tim'])+ ext)
-                    else: pass
+                    if f'{tim+ext}' not in pdf_folder:
+                        pdf_content = requests.get(image_url).content
+                        save_to_minio(client, pdf_folder,
+                                      f'{tim+ext}', pdf_content,
+                                      len(pdf_content))
                 if '666' in number:
-                     if ('{}'.format(number)+ext) not in SATAN_folder:
-                         urllib.request.urlretrieve(image_url, SATAN_folder+'/{}'.format(number)+ ext)
-                     else: pass
-                 
+                    if f'{number+ext}' not in SATAN_folder:
+                        content_666 = requests.get(image_url).content
+                        save_to_minio(client, SATAN_folder,
+                                      f'{number+ext}', content_666,
+                                      len(content_666))
                 else:
                     pass
-            except urllib.error.ContentTooShortError:
-                print('urlopen error retrieval incomplete')
+            except Exception as ex:
+                logger.error(f'content retrieval failed, {ex}')
 
 
-relevants = []
-
-
-def board_task(x):
-    thread = catalog_list(x)
-    print(thread)
-    for i in thread:
-        print(i)
+def board_task(board):
+    threads = catalog_list(board)
+    logger.debug(threads)
+    for thread in threads:
+        logger.debug(thread)
         try:
-            get_resources(x,i)
-        except urllib.error.HTTPError:
-            print('missing link')
-            pass
+            get_resources(board, thread)
         except PermissionError:
-            print('access denied')
-            pass 
-    print(x + 'taken')
+            logger.error('access denied')
+            pass
+        except Exception as ex:
+            logger.error(f'unknown exception {ex}')
+            pass
+    logger.debug(f"{board} taken")
 
-    
-def memeater():
-    run = True
-    while run:
-        if len(relevants)>1:
-            t0 = threading.Thread(target = board_task, args = (relevants.pop(-1),))
-            t1 = threading.Thread(target = board_task, args = (relevants.pop(-1),))
-            t0.start()
-            t1.start()
-            t0.join()
-            t1.join()
-        else:
-            if len(relevants) == 1:
-                t2 = threading.Thread(target = board_task, args = (relevants.pop(-1),))
-                t2.start()
-                t2.join()
-                print('mems taken')
-                run = False
-            else:
-                print('mems taken')
-                run = False
-        
-memeater()
+
+def memeater(boards):
+    logger.debug(f"big_memeater intinated for boards {boards}")
+    for board in boards:
+        try:
+            logger.debug(f"small_memeater intinated for board {board}")
+            threads = catalog_list(board)
+            logger.debug(f"thread numbers:\n {threads}")
+            Parallel(n_jobs=6)(delayed(get_resources)(board, thread)
+                               for thread in threads)
+        except Exception as ex:
+            logger.error(f"board {board} scrape returned an error: {ex}")
+
+
+def small_memeater(board):
+    logger.debug(f"small_memeater intinated for board {board}")
+    threads = catalog_list(board[0])
+    logger.debug(f"thread numbers:\n {threads}")
+    Parallel(n_jobs=6)(delayed(get_resources)(board[0], thread)
+                       for thread in threads)
+
+# memeater(["/x/"])
