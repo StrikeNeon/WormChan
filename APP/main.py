@@ -16,8 +16,25 @@ class MinioError(Exception):
     pass
 
 
-def rescan():
-    headers = {'accept': 'application/json'}
+def build_scan(username="lain", password="cyberia"):
+    data = {'grant_type': 'password',
+            'username': username,
+            'password': password}
+    headers = {
+            'Authorization': 'Basic Og==',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json, text/plain, */*',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Sec-Fetch-Site': 'same-origin',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Dest': 'empty'
+        }
+    response = requests.post('http://127.0.0.1:8000/token', headers=headers, data=data)
+
+    token = response.json().get("access_token")
+
+    headers = {'accept': 'application/json',
+               'Authorization': f"Bearer {token}"}
     response = requests.get('http://127.0.0.1:8000/get_mem_names/', headers=headers)
     if response.status_code == 200:
         with open("./cache/piclist.json", "w") as cache:
@@ -25,9 +42,10 @@ def rescan():
 
 
 class Img_Screen(BoxLayout):
-    #image display
+    # image display
     def __init__(self, **kwargs):
         super(Img_Screen, self).__init__(**kwargs)
+        self.token = self.login()
         self.errorimage = self.get_no_image()
         self.pics = self.get_cached_pic_names()
         self.pic_index = 0
@@ -42,13 +60,14 @@ class Img_Screen(BoxLayout):
 
         self.rescan_btn = Button(text='rescan')
         self.control.add_widget(self.rescan_btn)
-        self.rescan_btn.bind(on_press=rescan)
+        self.rescan_btn.bind(on_press=self.rescan)
 
         self.next_btn = Button(text='next')
         self.control.add_widget(self.next_btn)
         self.next_btn.bind(on_press=self.next_img)
 
         self.add_widget(self.control)
+        # login here, save creds, time relogin
         try:
             if not self.current_pic:
                 self.loaded_image = Image(source=self.errorimage.name)
@@ -62,19 +81,44 @@ class Img_Screen(BoxLayout):
         except Exception as ex:
             print(ex)
 
+    def login(self, username="lain", password="cyberia"):
+        data = {'grant_type': 'password',
+                'username': 'lain',
+                'password': 'cyberia'}
+        headers = {
+            'Authorization': 'Basic Og==',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json, text/plain, */*',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Sec-Fetch-Site': 'same-origin',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Dest': 'empty'
+        }
+        response = requests.post('http://127.0.0.1:8000/token', headers=headers, data=data)
+        return response.json().get("access_token")
+
+    def rescan(self):
+        headers = {'accept': 'application/json',
+                   'Authorization': f"Bearer {self.token}"}
+        response = requests.get('http://127.0.0.1:8000/get_mem_names/', headers=headers)
+        if response.status_code == 200:
+            with open("./cache/piclist.json", "w") as cache:
+                json.dump(response.json(), cache)
+
     def callback_scan(self, instance):
-        self.pics = rescan()
+        self.pics = self.rescan()
 
     def get_image(self):
         if self.pics == []:
             return
         else:
             headers = {
+                'Authorization': f"Bearer {self.token}",
                 'accept': 'application/json',
                 'Content-Type': 'application/json',
             }
             params = {'index': str(self.pic_index)}
-            data = json.dumps({"files":self.pics})
+            data = json.dumps({"files": self.pics})
             response = requests.post('http://127.0.0.1:8000/get_mem/', headers=headers, params=params, data=data)
             if response.status_code == 200:
                 with open(f"./cache/{self.pics[self.pic_index]}", "wb") as current_pic:
@@ -127,7 +171,7 @@ class MemEaterCLI(App):
             pass
         try:
             if "piclist.json" not in listdir("./cache"):
-                rescan()
+                build_scan()
         except requests.exceptions.ConnectionError:
             print("initial caching failed")
         return Img_Screen()
