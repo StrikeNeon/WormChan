@@ -49,7 +49,7 @@ class Img_Screen(BoxLayout):
         self.errorimage = self.get_no_image()
         self.pics = self.get_cached_pic_names()
         self.pic_index = 0
-        self.current_pic = self.get_image()
+        self.current_pic = self.get_image()[0]
 
         self.control = GridLayout()
         self.control.rows = 2
@@ -60,11 +60,22 @@ class Img_Screen(BoxLayout):
 
         self.rescan_btn = Button(text='rescan')
         self.control.add_widget(self.rescan_btn)
-        self.rescan_btn.bind(on_press=self.rescan)
+        self.rescan_btn.bind(on_press=lambda a: self.rescan())
 
         self.next_btn = Button(text='next')
         self.control.add_widget(self.next_btn)
         self.next_btn.bind(on_press=self.next_img)
+
+        self.save_btn = Button(text='mark saved')
+        self.control.add_widget(self.save_btn)
+        self.save_btn.bind(on_press=lambda a: self.save())
+
+        self.empty = Button(text='')
+        self.control.add_widget(self.empty)
+
+        self.save_pepe_btn = Button(text='mark pepe')
+        self.control.add_widget(self.save_pepe_btn)
+        self.save_pepe_btn.bind(on_press=lambda a: self.save(pepe=True))
 
         self.add_widget(self.control)
         # login here, save creds, time relogin
@@ -73,7 +84,7 @@ class Img_Screen(BoxLayout):
                 self.loaded_image = Image(source=self.errorimage.name)
                 self.add_widget(self.loaded_image)
             else:
-                self.loaded_image = Image(source=self.get_image())
+                self.loaded_image = Image(source=self.get_image()[0])
                 self.add_widget(self.loaded_image)
         except MinioError:
             self.error_label = Label(text='[color=098f1a][b]Minio shat itself[/b][/color]', markup=True)
@@ -123,7 +134,12 @@ class Img_Screen(BoxLayout):
             if response.status_code == 200:
                 with open(f"./cache/{self.pics[self.pic_index]}", "wb") as current_pic:
                     current_pic.write(response.content)
-                return f"./cache/{self.pics[self.pic_index]}"
+                    binary = response.content
+                return f"./cache/{self.pics[self.pic_index]}", binary
+            elif response.status_code == 401:
+                self.token = self.login()
+                index, binary = self.get_image()
+                return index, binary
             else:
                 raise MinioError(f"minio error on placeholder retrieval, status code {response.status_code}")
 
@@ -142,13 +158,23 @@ class Img_Screen(BoxLayout):
         with open("./cache/piclist.json", "r") as data:
             return json.load(data)["pics"]
 
+    def save(self, pepe=False):
+        if not pepe:
+            with open(f"./saved_pics/{self.pics[self.pic_index]}", "wb") as current_pic:
+                current_pic.write(self.get_image()[1])
+            return f"./saved_pics/{self.pics[self.pic_index]}"
+        else:
+            with open(f"./pepes/{self.pics[self.pic_index]}", "wb") as current_pic:
+                current_pic.write(self.get_image()[1])
+            return f"./pepes/{self.pics[self.pic_index]}"
+
     def prev_img(self, instance):
         if self.pic_index > 0:
             self.pic_index -= 1
         img_path = self.loaded_image.source
         self.remove_widget(self.loaded_image)
         remove(img_path)
-        self.loaded_image = Image(source=self.get_image())
+        self.loaded_image = Image(source=self.get_image()[0])
         self.add_widget(self.loaded_image)
 
     def next_img(self, instance):
@@ -157,7 +183,7 @@ class Img_Screen(BoxLayout):
         img_path = self.loaded_image.source
         self.remove_widget(self.loaded_image)
         remove(img_path)
-        self.loaded_image = Image(source=self.get_image())
+        self.loaded_image = Image(source=self.get_image()[0])
         self.add_widget(self.loaded_image)
 
 

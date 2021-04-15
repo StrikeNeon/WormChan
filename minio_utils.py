@@ -1,4 +1,4 @@
-from minio import Minio
+from minio import Minio, error
 from io import BytesIO
 
 client = Minio(
@@ -16,7 +16,10 @@ def save_to_minio(client, bucket, filename, data, file_size):
 
 
 def get_from_minio(client, bucketname, filename):
-    return client.get_object(bucketname, filename)
+    try:
+        return client.get_object(bucketname, filename)
+    except error.S3Error:
+        return {"message": "file not found"}
 
 
 def list_all_files(verbose=False):
@@ -73,19 +76,25 @@ def purge_all_files():
 def purge_unsaved_files():
     buckets = client.list_buckets()
     for bucket in buckets:
-        if "saved" not in bucket.name:
+        if "saved" not in bucket.name and bucket.name != "PEPE":
             for file in client.list_objects(bucket.name):
                 client.remove_object(bucket.name, file.object_name)
-    return {"message": "all files purged"}
+    return {"message": "unsaved purged"}
 
 
 def purge_saved_files():
     buckets = client.list_buckets()
     for bucket in buckets:
-        if "saved" in bucket.name:
+        if "saved" in bucket.name and bucket.name != "PEPE":
             for file in client.list_objects(bucket.name):
                 client.remove_object(bucket.name, file.object_name)
-    return {"message": "all files purged"}
+    return {"message": "saved files purged"}
+
+
+def purge_pepes():
+    for file in client.list_objects("PEPE"):
+        client.remove_object("PEPE", file.object_name)
+    return {"message": "all pepes purged"}
 
 
 # print(list_all_files(verbose = True))

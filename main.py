@@ -17,7 +17,6 @@ from user_utils import (user, token,
                         check_email, remove_user)
 
 from consts import glob_boards, ACCESS_TOKEN_EXPIRE_MINUTES
-from sys import exc_info
 
 app = FastAPI()
 
@@ -98,7 +97,6 @@ async def get_placeholder():
     try:
         output = get_from_minio(client, "static", "SORRY_NOTHING.jpg")
     except Exception as ex:
-        exc_value, exc_traceback = exc_info()
         logger.error(f"placeholder image retrieval failed with exception {ex}")
     return Response(content=output.read(), media_type="image/jpg")
 
