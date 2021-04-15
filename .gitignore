@@ -4,3 +4,5 @@ minio.exe
 .minio.sys
 BASE
 DB
+cache
+saved_pics
