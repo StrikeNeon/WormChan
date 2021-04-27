@@ -70,7 +70,8 @@ async def eat_mem(board_task: board,
 @app.post("/eat_mems/")
 async def eat_memes(task: task, current_user:
                     user = Depends(get_current_active_user)):
-    await memeater([f"/{board}/" for board in task.boards if board in glob_boards])
+    await memeater([f"/{board}/" for board in
+                    task.boards if board in glob_boards])
     return {"response":
             f"boards {[f'/{board}/' for board in task.boards if board in glob_boards]},\
             mems taken"}

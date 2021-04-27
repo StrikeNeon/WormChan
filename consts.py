@@ -1,7 +1,21 @@
-
-# ideally store them in server/container env variables
+from json import load
+from os import environ
 # openssl rand -hex 32
-SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+try:
+    with open('conf.json', 'r') as f:
+        DEBUG = True
+        secret_keys = load(f)
+
+        # get yours! openssl rand -hex 32
+        SECRET_KEY = secret_keys['SECRET_KEY']
+
+except FileNotFoundError:
+
+    #  TODO figure out why the server fails with debug set to false
+    DEBUG = True
+
+    SECRET_KEY = environ['SECRET_KEY']
+
 ALGORITHM = "HS256"
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
