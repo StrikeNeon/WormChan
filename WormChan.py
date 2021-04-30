@@ -64,30 +64,30 @@ def download(boardNAME, post):
                 save_to_minio(client, pic_folder,
                               f'{tim+ext}', content_pic,
                               len(content_pic))
-        if '.gif' in ext:
-            if f'{tim+ext}' not in gif_folder:
-                content_gif = requests.get(image_url).content
-                save_to_minio(client, gif_folder,
-                              f'{tim+ext}', content_gif,
-                              len(content_gif))
-        if '.webm' in ext:
-            if f'{tim+ext}' not in webm_folder:
-                content_webm = requests.get(image_url).content
-                save_to_minio(client, webm_folder,
-                              f'{tim+ext}', content_webm,
-                              len(content_webm))
-        if '.swf' in ext:
-            if f'{tim+ext}' not in swf_folder:
-                content_swf = requests.get(image_url).content
-                save_to_minio(client, swf_folder,
-                              f'{tim+ext}', content_swf,
-                              len(content_swf))
-        if '.pdf' in ext:
-            if f'{tim+ext}' not in pdf_folder:
-                pdf_content = requests.get(image_url).content
-                save_to_minio(client, pdf_folder,
-                              f'{tim+ext}', pdf_content,
-                              len(pdf_content))
+        # if '.gif' in ext:
+        #     if f'{tim+ext}' not in gif_folder:
+        #         content_gif = requests.get(image_url).content
+        #         save_to_minio(client, gif_folder,
+        #                       f'{tim+ext}', content_gif,
+        #                       len(content_gif))
+        # if '.webm' in ext:
+        #     if f'{tim+ext}' not in webm_folder:
+        #         content_webm = requests.get(image_url).content
+        #         save_to_minio(client, webm_folder,
+        #                       f'{tim+ext}', content_webm,
+        #                       len(content_webm))
+        # if '.swf' in ext:
+        #     if f'{tim+ext}' not in swf_folder:
+        #         content_swf = requests.get(image_url).content
+        #         save_to_minio(client, swf_folder,
+        #                       f'{tim+ext}', content_swf,
+        #                       len(content_swf))
+        # if '.pdf' in ext:
+        #     if f'{tim+ext}' not in pdf_folder:
+        #         pdf_content = requests.get(image_url).content
+        #         save_to_minio(client, pdf_folder,
+        #                       f'{tim+ext}', pdf_content,
+        #                       len(pdf_content))
         if '666' in number:
             if f'{number+ext}' not in SATAN_folder:
                 content_666 = requests.get(image_url).content

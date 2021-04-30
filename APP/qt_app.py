@@ -25,6 +25,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             self.pic_index = self.load_index()
         except FileNotFoundError:
             self.pic_index = 0
+        self.progressBar.setValue(self.pic_index)
         self.current_pic = "./cache/nothing.jpg"
 
         self.submit_data.clicked.connect(self.login)
@@ -36,7 +37,16 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
         self.save_btn.clicked.connect(self.save)
         self.pepe_btn.clicked.connect(lambda a: self.save(pepe=True))
 
+        self.scrape_menu_btn.clicked.connect(self.switch_to_scrape)
+        self.return_btn.clicked.connect(self.switch_to_images)
+
         self.cache_index.clicked.connect(self.save_index)
+
+    def switch_to_scrape(self):
+        self.app_pages.setCurrentIndex(2)
+
+    def switch_to_images(self):
+        self.app_pages.setCurrentIndex(1)
 
     def login(self):
         if not self.username:
@@ -60,10 +70,11 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
         if self.pics is None:
             self.rescan()
             self.pics = self.get_cached_pic_names()
+        self.progressBar.setMaximum(len(self.pics))
         self.current_pic = self.get_image()[0]
         self.image = QtGui.QPixmap(self.current_pic)
         self.image_view.setPixmap(self.image)
-        self.app_pages.setCurrentIndex(1)  # switch page
+        self.switch_to_images()  # switch page
 
     def re_login(self):
         data = {'grant_type': 'password',
@@ -138,6 +149,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
     def prev_img(self):
         if self.pic_index > 0:
             self.pic_index -= 1
+        self.progressBar.setValue(self.pic_index)
         try:
             remove(self.current_pic)
         except FileNotFoundError:
@@ -150,6 +162,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
     def next_img(self):
         if self.pic_index < len(self.pics):
             self.pic_index += 1
+        self.progressBar.setValue(self.pic_index)
         try:
             remove(self.current_pic)
         except FileNotFoundError:
