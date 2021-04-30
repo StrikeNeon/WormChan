@@ -108,20 +108,20 @@ def get_resources(boardNAME, thread):
         # Parse for success or failure
         out = json.loads(output)
         for post in out['posts']:
-            Parallel(n_jobs=4)(delayed(download)(boardNAME, post)
+            Parallel(n_jobs=2)(delayed(download)(boardNAME, post)
                                for post in out['posts'])
     logger.debug(f"finished thread {thread} for {boardNAME}")
 
 
-async def memeater(boards):
+def memeater(boards):
     logger.debug(f"big_memeater intinated for boards {boards}")
     for board in boards:
         try:
             logger.debug(f"small_memeater intinated for board {board}")
             threads = catalog_list(board)
             logger.debug(f"thread numbers:\n {threads}")
-            await asyncio.gather(get_resources(board, thread)
-                                 for thread in threads)
+            Parallel(n_jobs=4)(delayed(get_resources)(board, thread)
+                               for thread in threads)
         except Exception as ex:
             logger.error(f"board {board} scrape returned an error: {ex}")
 
