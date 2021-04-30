@@ -108,7 +108,7 @@ def get_resources(boardNAME, thread):
         # Parse for success or failure
         out = json.loads(output)
         for post in out['posts']:
-            Parallel(n_jobs=6)(delayed(download)(boardNAME, post)
+            Parallel(n_jobs=4)(delayed(download)(boardNAME, post)
                                for post in out['posts'])
     logger.debug(f"finished thread {thread} for {boardNAME}")
 
