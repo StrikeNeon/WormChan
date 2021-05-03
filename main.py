@@ -7,14 +7,15 @@ from loguru import logger
 from WormChan import memeater, small_memeater
 
 from minio_utils import (client, get_from_minio,
-                         list_all_files, purge_all_files,
+                         list_unsaved_files, purge_all_files,
                          purge_unsaved_files)
 
 from user_utils import (user, token,
                         get_current_user, get_current_active_user,
                         create_access_token,
                         authenticate_user, create_user,
-                        check_email, remove_user)
+                        check_email, remove_user,
+                        set_relevants)
 
 from consts import glob_boards, ACCESS_TOKEN_EXPIRE_MINUTES
 
@@ -32,26 +33,18 @@ class board(BaseModel):
 class file_list(BaseModel):
     files: list
 
-
-@app.get("/setup/")
-async def setup_buckets(current_user: user = Depends(get_current_active_user)):
-    [bucket.name for bucket in client.list_buckets()
-     if not client.bucket_exists(bucket.name)]
-    return {"response": "setup complete"}
-
 # @app.get("/set_relevants/{task}")
-# async def eat_memes(task: str):
 
 
 @app.get("/full_purge/")
 async def full_purge(current_user: user = Depends(get_current_active_user)):
-    purge_all_files()
+    purge_all_files(current_user.username)
     return {"response": "all files purged"}
 
 
 @app.get("/purge_unsaved/")
 async def purge_unsaved(current_user: user = Depends(get_current_active_user)):
-    purge_unsaved_files()
+    purge_unsaved_files(current_user.username)
     return {"response": "unsaved files purged"}
 
 
@@ -71,7 +64,7 @@ async def eat_mem(board_task: board,
 async def eat_memes(task: task, current_user:
                     user = Depends(get_current_active_user)):
     memeater([f"/{board}/" for board in
-                    task.boards if board in glob_boards])
+              task.boards if board in glob_boards], current_user.username)
     return {"response":
             f"boards {[f'/{board}/' for board in task.boards if board in glob_boards]},\
             mems taken"}
@@ -79,17 +72,17 @@ async def eat_memes(task: task, current_user:
 
 @app.get("/get_mem_names/")
 async def get_mem_names(current_user: user = Depends(get_current_user)):
-    output = list_all_files(verbose=True)
-    return {"pics": output["pics"]}
+    output = list_unsaved_files(current_user.username, verbose=True)
+    return {"pics": output[f"{current_user.username}_main"]}
 
 
 @app.post("/get_mem/")
-async def get_mem(file_list: file_list, index: int = 0,
+async def get_mem(file_list: list, index: int = 0,
                   current_user: user = Depends(get_current_active_user)):
-    output = get_from_minio(client, "pics", file_list.files[index])
-    if ".png" in file_list.files[index]:
+    output = get_from_minio(client, f"{current_user.username}_main", file_list[index])
+    if ".png" in file_list[index]:
         return Response(content=output.read(), media_type="image/png")
-    if ".jpg" in file_list.files[index]:
+    if ".jpg" in file_list[index]:
         return Response(content=output.read(), media_type="image/jpg")
 
 
@@ -121,6 +114,13 @@ async def login_for_access_token(form_data:
 
 @app.get("/users/me/")
 async def read_users_me(current_user: user = Depends(get_current_active_user)):
+    return current_user
+
+
+@app.get("/users/set_relevants/")
+async def set_user_relevants(current_user: user = Depends(get_current_active_user),
+                             relevants: list = ["x"]):
+    set_relevants(user.username, relevants)
     return current_user
 
 

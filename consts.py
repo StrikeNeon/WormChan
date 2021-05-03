@@ -2,12 +2,15 @@ from json import load
 from os import environ
 # openssl rand -hex 32
 try:
-    with open('conf.json', 'r') as f:
+    with open('conf.json', 'r') as config_file:
         DEBUG = True
-        secret_keys = load(f)
+        secret_keys = load(config_file)
 
         # get yours! openssl rand -hex 32
         SECRET_KEY = secret_keys['SECRET_KEY']
+        MINIO_CONNECTION = secret_keys['MINIO_CONNECTION']
+        MINIO_ACCESS_KEY = secret_keys['MINIO_ACCESS_KEY']
+        MINIO_SECRET_KEY = secret_keys['MINIO_SECRET_KEY']
 
 except FileNotFoundError:
 
@@ -15,6 +18,9 @@ except FileNotFoundError:
     DEBUG = True
 
     SECRET_KEY = environ['SECRET_KEY']
+    MINIO_CONNECTION = environ['MINIO_CONNECTION']
+    MINIO_ACCESS_KEY = environ['MINIO_ACCESS_KEY']
+    MINIO_SECRET_KEY = environ['MINIO_SECRET_KEY']
 
 ALGORITHM = "HS256"
 

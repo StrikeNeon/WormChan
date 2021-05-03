@@ -21,14 +21,15 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
         self.password = None
         self.token = None
         self.pics = None
-        try:
-            self.pic_index = self.load_index()
-        except FileNotFoundError:
-            self.pic_index = 0
+        self.pic_index = self.load_index() if self.load_index() != None else 0
         self.progressBar.setValue(self.pic_index)
         self.current_pic = "./cache/nothing.jpg"
 
         self.submit_data.clicked.connect(self.login)
+
+        self.submit_data.clicked.connect(self.switch_to_register)
+
+        self.send_data.clicked.connect(self.register_user)
 
         self.rescan_btn.clicked.connect(self.rescan)
         self.previous_btn.clicked.connect(self.prev_img)
@@ -42,11 +43,17 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
 
         self.cache_index.clicked.connect(self.save_index)
 
-    def switch_to_scrape(self):
-        self.app_pages.setCurrentIndex(2)
+    def switch_to_login(self):
+        self.app_pages.setCurrentIndex(0)
 
     def switch_to_images(self):
         self.app_pages.setCurrentIndex(1)
+
+    def switch_to_scrape(self):
+        self.app_pages.setCurrentIndex(2)
+
+    def switch_to_register(self):
+        self.app_pages.setCurrentIndex(3)
 
     def login(self):
         if not self.username:
@@ -67,7 +74,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
         response = requests.post('http://127.0.0.1:8000/token', headers=headers, data=data)
         self.token = response.json().get("access_token")
         self.pics = self.get_cached_pic_names()
-        if self.pics is None:
+        if not self.pics:
             self.rescan()
             self.pics = self.get_cached_pic_names()
         self.progressBar.setMaximum(len(self.pics))
@@ -75,6 +82,30 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
         self.image = QtGui.QPixmap(self.current_pic)
         self.image_view.setPixmap(self.image)
         self.switch_to_images()  # switch page
+
+    def register_user(self):
+        username = self.username.text()
+        password = self.password_input.text()
+        email = self.email.text()
+        nickname = self.nickname.text()
+        if username and password and email:
+            data = {"username": username,
+                    "password": password,
+                    "email": email,
+                    "full_name": nickname}
+            headers = {
+                'Authorization': 'Basic Og==',
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Accept': 'application/json, text/plain, */*',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Sec-Fetch-Site': 'same-origin',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Dest': 'empty'
+            }
+            response = requests.post('http://127.0.0.1:8000/create_user', headers=headers, data=data)
+            if response.status_code == 200:
+                if response.json().get("response") == f"user {username} has been successfully created":
+                    self.switch_to_login()  # switch page
 
     def re_login(self):
         data = {'grant_type': 'password',
@@ -127,7 +158,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 index, binary = self.get_image()
                 return index, binary
             else:
-                raise MinioError(f"minio error on placeholder retrieval, status code {response.status_code}")
+                raise MinioError(f"minio error on image retrieval, status code {response.status_code}")
 
     def get_cached_pic_names(self):
         try:

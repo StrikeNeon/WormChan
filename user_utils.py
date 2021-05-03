@@ -34,6 +34,7 @@ class user(BaseModel):
     username: str
     email: Optional[str] = None
     full_name: Optional[str] = None
+    relevants: Optional[list] = None
     disabled: Optional[bool] = False
 
 
@@ -94,7 +95,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 
-def verify_password(plain_password, hashed_password):
+def verify_password(plain_password: str, hashed_password: str):
     try:
         verification = pwd_context.verify(plain_password, hashed_password)
         return verification
@@ -103,11 +104,11 @@ def verify_password(plain_password, hashed_password):
                             detail="password could not be identified")
 
 
-def get_password_hash(password):
+def get_password_hash(password: str):
     return pwd_context.hash(password)
 
 
-def create_user(user_dict):
+def create_user(user_dict: dict):
     response = collection.find_one({'username': user_dict["username"]})
     if response:
         return False
@@ -125,16 +126,22 @@ def create_user(user_dict):
     return True
 
 
-def ban_user(username):
+def unban_user(username: str):
+    collection.find_one_and_update({'username': username},
+                                   {"$set": {'disabled': False}})
+    logger.info(f"user {username} was unbanned")
+
+
+def ban_user(username: str):
     collection.find_one_and_update({'username': username},
                                    {"$set": {'disabled': True}})
     logger.info(f"user {username} was banned")
 
 
-def unban_user(username):
+def set_relevants(username: str, relevants: list):
     collection.find_one_and_update({'username': username},
-                                   {"$set": {'disabled': False}})
-    logger.info(f"user {username} was unbanned")
+                                   {"$set": {'relevants': relevants}})
+    logger.info(f"user {username} relevants set")
 
 
 def remove_user(username: str, password: str, current_user: user):
@@ -150,14 +157,16 @@ def remove_user(username: str, password: str, current_user: user):
         return False
 
 
-def check_email(email):
+def check_email(email: str):
     regex = '^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w+$'
     return re.search(regex, email)
 
 
-# create_user(collection, {"username":"lain",
-#                          "password":"cyberia", "email":"LALL@wired.com"})
-# get_user(collection, "lain")
-# ban_user(collection, "lain")
-# unban_user(collection, "lain")
-# remove_user(collection, "testuser", "test")
+# create_user({"username":"lain",
+#              "password":"cyberia",
+#              "email":"LALL@wired.com"})
+# get_user("lain")
+# ban_user("lain")
+# unban_user("lain")
+# remove_user("testuser", "test")
+# set_relevants("lain", ["g", "x"])
