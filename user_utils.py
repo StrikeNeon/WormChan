@@ -160,13 +160,3 @@ def remove_user(username: str, password: str, current_user: user):
 def check_email(email: str):
     regex = '^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w+$'
     return re.search(regex, email)
-
-
-# create_user({"username":"lain",
-#              "password":"cyberia",
-#              "email":"LALL@wired.com"})
-# get_user("lain")
-# ban_user("lain")
-# unban_user("lain")
-# remove_user("testuser", "test")
-# set_relevants("lain", ["g", "x"])

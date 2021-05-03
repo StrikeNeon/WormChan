@@ -29,10 +29,10 @@ def list_all_files(username: str, verbose: bool = False):
     for bucket in buckets:
         if not verbose:
             output[bucket] = len([file for file
-                                in client.list_objects(bucket)])
+                                  in client.list_objects(bucket)])
         else:
             output[bucket] = [file.object_name for file
-                            in client.list_objects(bucket)]
+                              in client.list_objects(bucket)]
     return output
 
 

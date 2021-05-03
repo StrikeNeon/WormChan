@@ -21,7 +21,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
         self.password = None
         self.token = None
         self.pics = None
-        self.pic_index = self.load_index() if self.load_index() != None else 0
+        self.pic_index = self.load_index() if self.load_index() is not None else 0
         self.progressBar.setValue(self.pic_index)
         self.current_pic = "./cache/nothing.jpg"
         self.submit_data.clicked.connect(self.login)
@@ -153,7 +153,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             }
             response = requests.post('http://127.0.0.1:8000/create_user', headers=headers, data=data)
             if response.status_code == 200:
-                if response.json().get("response") == f"user {username_field} has been successfully created":
+                if response.json().get("response") == f"user {username} has been successfully created":
                     self.switch_to_login()  # switch page
 
     def re_login(self):
@@ -279,7 +279,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             }
         data = {"boards": [key for key, value in self.set_states().items() if value is True]}
         if data.get("boards") != []:
-            response = requests.post('http://127.0.0.1:8000/users/set_relevants/', 
+            response = requests.post('http://127.0.0.1:8000/users/set_relevants/',
                                      headers=headers,
                                      data=json.dumps(data))
             if response.status_code == 200:
