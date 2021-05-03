@@ -20,7 +20,7 @@ def get_from_minio(client, bucketname, filename):
     try:
         return client.get_object(bucketname, filename)
     except error.S3Error:
-        return {"message": "file not found"}
+        return None
 
 
 def list_all_files(username: str, verbose: bool = False):

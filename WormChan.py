@@ -7,9 +7,6 @@ import requests
 import json
 from joblib import Parallel, delayed
 from minio_utils import client, save_to_minio
-from consts import (pic_folder, gif_folder,
-                    swf_folder, webm_folder,
-                    pdf_folder, SATAN_folder)
 from loguru import logger
 # end of import list
 
@@ -70,23 +67,25 @@ def download(boardNAME, post, user):
 
 
 def get_resources(boardNAME, thread, user):
-    url = f'http://a.4cdn.org/{boardNAME}/thread/{thread}.json'
-    response = requests.get(url)
-    output = response.content.decode('utf-8')
-    if output:
-        # Parse for success or failure
-        out = json.loads(output)
-        for post in out['posts']:
+    try:
+        url = f'http://a.4cdn.org/{boardNAME}/thread/{thread}.json'
+        response = requests.get(url)
+        output = response.content.decode('utf-8')
+        if output:
+            # Parse for success or failure
+            out = json.loads(output)
             Parallel(n_jobs=2)(delayed(download)(boardNAME, post, user)
                                for post in out['posts'])
-    logger.debug(f"finished thread {thread} for {boardNAME}")
+        logger.debug(f"finished thread {thread} for {boardNAME}")
+    except Exception as ex:
+        logger.error(f'thread retrieval failed, {ex}')
 
 
 def memeater(boards, user):
     logger.debug(f"big_memeater intinated for boards {boards}")
     for board in boards:
         try:
-            logger.debug(f"small_memeater intinated for board {board}")
+            logger.debug(f"memeater intinated for board {board}")
             threads = catalog_list(board)
             logger.debug(f"thread numbers:\n {threads}")
             Parallel(n_jobs=4)(delayed(get_resources)(board, thread, user)

@@ -27,13 +27,6 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 # getting program and resouce paths
-pic_folder = 'pics'
-pdf_folder = 'pdfs'
-swf_folder = 'swf'
-webm_folder = 'webms'
-gif_folder = 'gifs'
-SATAN_folder = '666'
-
 glob_boards = ["a", "c", "g",
                "k", "m", "o",
                "p", "v", "vg",
@@ -53,6 +46,3 @@ glob_boards = ["a", "c", "g",
                "tv", "vp", "wsg",
                "wsr", "x", "r9k",
                "b", "s4s"]
-
-
-folder_setup = ['pics', 'pdfs', 'swf', 'webms', 'gifs', '666']

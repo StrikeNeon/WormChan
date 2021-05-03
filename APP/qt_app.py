@@ -24,12 +24,12 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
         self.pic_index = self.load_index() if self.load_index() != None else 0
         self.progressBar.setValue(self.pic_index)
         self.current_pic = "./cache/nothing.jpg"
-
         self.submit_data.clicked.connect(self.login)
 
-        self.submit_data.clicked.connect(self.switch_to_register)
+        self.register_btn.clicked.connect(self.switch_to_register)
 
         self.send_data.clicked.connect(self.register_user)
+        self.return_btn_register.clicked.connect(self.switch_to_login)
 
         self.rescan_btn.clicked.connect(self.rescan)
         self.previous_btn.clicked.connect(self.prev_img)
@@ -42,6 +42,49 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
         self.return_btn.clicked.connect(self.switch_to_images)
 
         self.cache_index.clicked.connect(self.save_index)
+
+        self.remember_boards_btn.clicked.connect(self.remember_boards)
+        self.scrape_command_btn.clicked.connect(self.scrape)
+
+    def set_states(self):
+        return {"asp": self.asp_checkbox.isChecked(),
+                "vm": self.vm_checkbox.isChecked(),
+                "vrpg": self.vrpg_checkbox.isChecked(),
+                "vip": self.vip_checkbox.isChecked(),
+                "lgbt": self.lgbt_checkbox.isChecked(),
+                "biz": self.biz_checkbox.isChecked(),
+                "co": self.co_checkbox.isChecked(),
+                "an": self.an_checkbox.isChecked(),
+                "int": self.int_checkbox.isChecked(),
+                "fit": self.fit_checkbox.isChecked(),
+                "mlp": self.mlp_checkbox.isChecked(),
+                "p": self.p_checkbox.isChecked(),
+                "ck": self.ck_checkbox.isChecked(),
+                "tvr": self.tvr_checkbox.isChecked(),
+                "his": self.his_checkbox.isChecked(),
+                "tv": self.tv_checkbox.isChecked(),
+                "a": self.a_checkbox.isChecked(),
+                "qst": self.qst_checkbox.isChecked(),
+                "news": self.news_checkbox.isChecked(),
+                "tg": self.tg_checkbox.isChecked(),
+                "wsr": self.wsr_checkbox.isChecked(),
+                "o": self.o_checkbox.isChecked(),
+                "gd": self.gd_checkbox.isChecked(),
+                "diy": self.diy_checkbox.isChecked(),
+                "jp": self.jp_checkbox.isChecked(),
+                "v": self.v_checkbox.isChecked(),
+                "sp": self.sp_checkbox.isChecked(),
+                "fa": self.fa_checkbox.isChecked(),
+                "mu": self.mu_checkbox.isChecked(),
+                "m": self.m_checkbox.isChecked(),
+                "out": self.out_checkbox.isChecked(),
+                "vmg": self.vmg_checkbox.isChecked(),
+                "g": self.g_checkbox.isChecked(),
+                "lit": self.lit_checkbox.isChecked(),
+                "n": self.n_checkbox.isChecked(),
+                "vr": self.vr_checkbox.isChecked(),
+                "cgi": self.cgi_checkbox.isChecked(),
+                "vst": self.vst_checkbox.isChecked()}
 
     def switch_to_login(self):
         self.app_pages.setCurrentIndex(0)
@@ -72,22 +115,28 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             'Sec-Fetch-Dest': 'empty'
         }
         response = requests.post('http://127.0.0.1:8000/token', headers=headers, data=data)
+        if response.status_code == 401:
+            return
         self.token = response.json().get("access_token")
         self.pics = self.get_cached_pic_names()
         if not self.pics:
             self.rescan()
             self.pics = self.get_cached_pic_names()
         self.progressBar.setMaximum(len(self.pics))
-        self.current_pic = self.get_image()[0]
-        self.image = QtGui.QPixmap(self.current_pic)
-        self.image_view.setPixmap(self.image)
-        self.switch_to_images()  # switch page
+        try:
+            self.current_pic = self.get_image()[0]
+            self.image = QtGui.QPixmap(self.current_pic)
+            self.image_view.setPixmap(self.image)
+            self.switch_to_images()  # switch page
+        except Exception as ex:
+            print(ex)
+            return
 
     def register_user(self):
-        username = self.username.text()
-        password = self.password_input.text()
-        email = self.email.text()
-        nickname = self.nickname.text()
+        username = self.username_field.text()
+        password = self.password_field.text()
+        email = self.email_field.text()
+        nickname = self.nickname_field.text()
         if username and password and email:
             data = {"username": username,
                     "password": password,
@@ -104,7 +153,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             }
             response = requests.post('http://127.0.0.1:8000/create_user', headers=headers, data=data)
             if response.status_code == 200:
-                if response.json().get("response") == f"user {username} has been successfully created":
+                if response.json().get("response") == f"user {username_field} has been successfully created":
                     self.switch_to_login()  # switch page
 
     def re_login(self):
@@ -132,6 +181,12 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 data = response.json()
                 data["index"] = 0
                 json.dump(data, cache)
+                return 0
+        elif response.status_code == 401:
+            if self.re_login():
+                return self.rescan()
+            else:
+                return 401
 
     def get_image(self):
         if self.pics == []:
@@ -142,7 +197,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 'accept': 'application/json',
                 'Content-Type': 'application/json',
             }
-            params = {'index': str(self.pic_index)}
+            params = {'index': self.pic_index}
             data = json.dumps({"files": self.pics})
             response = requests.post('http://127.0.0.1:8000/get_mem/', headers=headers, params=params, data=data)
             if response.status_code == 200:
@@ -215,6 +270,47 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 return json.load(data)["index"]
         except FileNotFoundError:
             None
+
+    def remember_boards(self):
+        headers = {
+                'Authorization': f"Bearer {self.token}",
+                'accept': 'application/json',
+                'Content-Type': 'application/json',
+            }
+        data = {"boards": [key for key, value in self.set_states().items() if value is True]}
+        if data.get("boards") != []:
+            response = requests.post('http://127.0.0.1:8000/users/set_relevants/', 
+                                     headers=headers,
+                                     data=json.dumps(data))
+            if response.status_code == 200:
+                self.rescan()
+                return 0
+            elif response.status_code == 401:
+                if self.re_login():
+                    return self.remember_boards()
+                else:
+                    return 401
+        return 0
+
+    def scrape(self):
+        headers = {
+                'Authorization': f"Bearer {self.token}",
+                'accept': 'application/json',
+                'Content-Type': 'application/json',
+            }
+        data = {"boards": [key for key, value in self.set_states().items() if value is True]}
+        if data.get("boards") != []:
+            response = requests.post('http://127.0.0.1:8000/eat_mems/',
+                                     headers=headers,
+                                     data=json.dumps(data))
+            if response.status_code == 200:
+                return 0
+            elif response.status_code == 401:
+                if self.re_login():
+                    return self.scrape()
+                else:
+                    return 401
+        return 0
 
 
 if __name__ == "__main__":
