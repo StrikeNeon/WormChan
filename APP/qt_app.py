@@ -45,6 +45,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
 
         self.remember_boards_btn.clicked.connect(self.remember_boards)
         self.scrape_command_btn.clicked.connect(self.scrape)
+        self.purge_unsaved_btn.clicked.connect(self.purge_unsaved)
 
     def set_states(self):
         return {"asp": self.asp_checkbox.isChecked(),
@@ -311,6 +312,24 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 else:
                     return 401
         return 0
+
+    def purge_unsaved(self):
+        headers = {
+                'Authorization': f"Bearer {self.token}",
+                'accept': 'application/json',
+                'Content-Type': 'application/json',
+            }
+        response = requests.get('http://127.0.0.1:8000/purge_unsaved/',
+                                     headers=headers)
+        if response.status_code == 200:
+            self.rescan()
+            self.current_pic = "./cache/nothing.jpg"
+            return 0
+        elif response.status_code == 401:
+            if self.re_login():
+                return self.purge_unsaved()
+            else:
+                return 401
 
 
 if __name__ == "__main__":
