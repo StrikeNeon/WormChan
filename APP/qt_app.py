@@ -1,7 +1,7 @@
 import sys  # sys нужен для передачи argv в QApplication
 import requests
 import json
-from os import mkdir, listdir, remove
+from os import mkdir, remove
 from PyQt5 import QtWidgets, QtGui
 import app_design  # design file
 from PIL import Image
@@ -21,6 +21,12 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
         self.password = None
         self.token = None
         self.pics = None
+        try:
+            mkdir("cache")
+            mkdir("saved_pics")
+            mkdir("pepes")
+        except FileExistsError:
+            pass
         self.pic_index = self.load_index() if self.load_index() is not None else 0
         self.progressBar.setValue(self.pic_index)
         self.current_pic = "./cache/nothing.jpg"
@@ -75,6 +81,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 "jp": self.jp_checkbox.isChecked(),
                 "v": self.v_checkbox.isChecked(),
                 "sp": self.sp_checkbox.isChecked(),
+                "s4s": self.s4s_checkbox.isChecked(),
                 "fa": self.fa_checkbox.isChecked(),
                 "mu": self.mu_checkbox.isChecked(),
                 "m": self.m_checkbox.isChecked(),
@@ -182,6 +189,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 data = response.json()
                 data["index"] = 0
                 json.dump(data, cache)
+                self.pic_index = 0
                 return 0
         elif response.status_code == 401:
             if self.re_login():
@@ -205,8 +213,11 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 with open(f"./cache/{self.pics[self.pic_index]}", "wb") as current_pic:
                     current_pic.write(response.content)
                     binary = response.content
-                img = Image.open(f"./cache/{self.pics[self.pic_index]}")
-                img = img.resize((919, 809), Image.ANTIALIAS)
+                try:
+                    img = Image.open(f"./cache/{self.pics[self.pic_index]}")
+                except Image.UnidentifiedImageError:
+                    img = Image.open(f"./cache/nothing.jpg")
+                img = img.resize((self.image_view.width(), self.image_view.height()), Image.ANTIALIAS)
                 img.save(f"./cache/{self.pics[self.pic_index]}")
                 return f"./cache/{self.pics[self.pic_index]}", binary
             elif response.status_code == 401:
