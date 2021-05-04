@@ -79,13 +79,17 @@ async def get_mem_names(current_user: user = Depends(get_current_user)):
 @app.post("/get_mem/")
 async def get_mem(file_list: file_list, index: int = 0,
                   current_user: user = Depends(get_current_active_user)):
-    output = get_from_minio(client, f"{current_user.username}_main", file_list.files[index])
+    try:
+        output = get_from_minio(client, f"{current_user.username}_main", file_list.files[index])
+    except IndexError:
+        return Response(status_code=500)
     if output:
         if ".png" in file_list.files[index]:
             return Response(content=output.read(), media_type="image/png")
         if ".jpg" in file_list.files[index]:
             return Response(content=output.read(), media_type="image/jpg")
     return Response(status_code=404)
+
 
 
 @app.get("/get_placeholder/")
