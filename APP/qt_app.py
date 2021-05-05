@@ -27,7 +27,9 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             mkdir("pepes")
         except FileExistsError:
             pass
-        self.pic_index = self.load_index() if self.load_index() is not None else 0
+        self.pic_index = (self.load_index()
+                          if self.load_index() is not None
+                          else 0)
         self.progressBar.setValue(self.pic_index)
         self.current_pic = "./cache/nothing.jpg"
         self.submit_data.clicked.connect(self.login)
@@ -122,7 +124,8 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Dest': 'empty'
         }
-        response = requests.post('http://127.0.0.1:8000/token', headers=headers, data=data)
+        response = requests.post('http://127.0.0.1:8000/token',
+                                 headers=headers, data=data)
         if response.status_code == 401:
             return
         self.token = response.json().get("access_token")
@@ -159,7 +162,8 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 'Sec-Fetch-Mode': 'cors',
                 'Sec-Fetch-Dest': 'empty'
             }
-            response = requests.post('http://127.0.0.1:8000/create_user', headers=headers, data=data)
+            response = requests.post('http://127.0.0.1:8000/create_user',
+                                     headers=headers, data=data)
             if response.status_code == 200:
                 if response.json().get("response") == f"user {username} has been successfully created":
                     self.switch_to_login()  # switch page
@@ -177,13 +181,15 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Dest': 'empty'
         }
-        response = requests.post('http://127.0.0.1:8000/token', headers=headers, data=data)
+        response = requests.post('http://127.0.0.1:8000/token',
+                                 headers=headers, data=data)
         self.token = response.json().get("access_token")
 
     def rescan(self):
         headers = {'accept': 'application/json',
                    'Authorization': f"Bearer {self.token}"}
-        response = requests.get('http://127.0.0.1:8000/get_mem_names/', headers=headers)
+        response = requests.get('http://127.0.0.1:8000/get_mem_names/',
+                                headers=headers)
         if response.status_code == 200:
             with open("./cache/piclist.json", "w") as cache:
                 data = response.json()
@@ -208,7 +214,8 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             }
             params = {'index': self.pic_index}
             data = json.dumps({"files": self.pics})
-            response = requests.post('http://127.0.0.1:8000/get_mem/', headers=headers, params=params, data=data)
+            response = requests.post('http://127.0.0.1:8000/get_mem/',
+                                     headers=headers, params=params, data=data)
             if response.status_code == 200:
                 with open(f"./cache/{self.pics[self.pic_index]}", "wb") as current_pic:
                     current_pic.write(response.content)
@@ -343,9 +350,12 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 return 401
 
 
-if __name__ == "__main__":
-
+def main():
     app = QtWidgets.QApplication(sys.argv)
     wormchan = wormchan_app()
     wormchan.show()
+    wormchan.save_index()
     sys.exit(app.exec_())
+
+
+main()
