@@ -1,10 +1,12 @@
 import sys  # sys нужен для передачи argv в QApplication
+import signal
 import requests
 import json
 from os import mkdir, remove
 from PyQt5 import QtWidgets, QtGui
 import app_design  # design file
 from PIL import Image
+from loguru import logger
 
 
 class MinioError(Exception):
@@ -48,8 +50,6 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
 
         self.scrape_menu_btn.clicked.connect(self.switch_to_scrape)
         self.return_btn.clicked.connect(self.switch_to_images)
-
-        self.cache_index.clicked.connect(self.save_index)
 
         self.remember_boards_btn.clicked.connect(self.remember_boards)
         self.scrape_command_btn.clicked.connect(self.scrape)
@@ -95,6 +95,11 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 "vr": self.vr_checkbox.isChecked(),
                 "cgi": self.cgi_checkbox.isChecked(),
                 "vst": self.vst_checkbox.isChecked()}
+
+    def closeEvent(self, event):
+        logger.info("exiting")
+        self.save_index()
+        event.accept()  # let the window close
 
     def switch_to_login(self):
         self.app_pages.setCurrentIndex(0)
@@ -353,8 +358,8 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
 def main():
     app = QtWidgets.QApplication(sys.argv)
     wormchan = wormchan_app()
+    signal.signal(signal.SIGINT, lambda *a: sigint_handler(wormchan))
     wormchan.show()
-    wormchan.save_index()
     sys.exit(app.exec_())
 
 
