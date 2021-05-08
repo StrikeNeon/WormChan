@@ -57,6 +57,8 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
     def set_states(self):
         return {"asp": self.asp_checkbox.isChecked(),
                 "vm": self.vm_checkbox.isChecked(),
+                "b": self.b_checkbox.isChecked(),
+                "x": self.x_checkbox.isChecked(),
                 "vrpg": self.vrpg_checkbox.isChecked(),
                 "vip": self.vip_checkbox.isChecked(),
                 "lgbt": self.lgbt_checkbox.isChecked(),
@@ -144,7 +146,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             self.image_view.setPixmap(self.image)
             self.switch_to_images()  # switch page
         except Exception as ex:
-            print(ex)
+            logger.error(ex)
             return
 
     def register_user(self):
@@ -326,6 +328,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             response = requests.post('http://127.0.0.1:8000/eat_mems/',
                                      headers=headers,
                                      data=json.dumps(data))
+            print(response)
             if response.status_code == 200:
                 return 0
             elif response.status_code == 401:

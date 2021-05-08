@@ -11,6 +11,10 @@ try:
         MINIO_CONNECTION = secret_keys['MINIO_CONNECTION']
         MINIO_ACCESS_KEY = secret_keys['MINIO_ACCESS_KEY']
         MINIO_SECRET_KEY = secret_keys['MINIO_SECRET_KEY']
+        RABBITMQ_USER = secret_keys['RABBITMQ_USER']
+        RABBITMQ_PASSWORD = secret_keys['RABBITMQ_PASSWORD']
+        RABBITMQ_HOST_PORT = secret_keys['RABBITMQ_HOST_PORT']
+        RABBITMQ_VHOST = secret_keys['RABBITMQ_VHOST']
 
 except FileNotFoundError:
 
@@ -21,6 +25,10 @@ except FileNotFoundError:
     MINIO_CONNECTION = environ['MINIO_CONNECTION']
     MINIO_ACCESS_KEY = environ['MINIO_ACCESS_KEY']
     MINIO_SECRET_KEY = environ['MINIO_SECRET_KEY']
+    RABBITMQ_USER = environ['RABBITMQ_USER']
+    RABBITMQ_PASSWORD = environ['RABBITMQ_PASSWORD']
+    RABBITMQ_HOST_PORT = environ['RABBITMQ_HOST_PORT']
+    RABBITMQ_VHOST = environ['RABBITMQ_VHOST']
 
 ALGORITHM = "HS256"
 

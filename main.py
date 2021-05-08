@@ -18,7 +18,7 @@ from user_utils import (user, token,
                         set_relevants)
 
 from consts import glob_boards, ACCESS_TOKEN_EXPIRE_MINUTES
-
+from workers import eat_mem_task
 app = FastAPI()
 
 
@@ -51,23 +51,18 @@ async def purge_unsaved(current_user: user = Depends(get_current_active_user)):
 @app.post("/eat_mem/")
 async def eat_mem(board_task: board,
                   current_user: user = Depends(get_current_active_user)):
-    board_scrape = board_task.board
-    # logger.debug(board_scrape)
-    if board_scrape in glob_boards:
-        await small_memeater([f"/{board_scrape}/"])
-        return {"response": f"board {board_scrape}, mems taken"}
-    else:
-        return {"response": f"board {board_scrape} does not exist"}
+    small_eat_mem_task.delay(board_task.board, current_user.username)
+    return {"response":
+            f"board f'/{board}/', enqueued for user {current_user.username}"}
 
 
 @app.post("/eat_mems/")
 async def eat_memes(task: task, current_user:
                     user = Depends(get_current_active_user)):
-    memeater([f"/{board}/" for board in
-              task.boards if board in glob_boards], current_user.username)
+    eat_mem_task.delay(task.boards, current_user.username)
     return {"response":
             f"boards {[f'/{board}/' for board in task.boards if board in glob_boards]},\
-            mems taken"}
+            enqueued for user {current_user.username}"}
 
 
 @app.get("/get_mem_names/")
