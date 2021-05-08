@@ -1,5 +1,4 @@
 import sys  # sys нужен для передачи argv в QApplication
-import signal
 import requests
 import json
 from os import mkdir, remove
@@ -228,7 +227,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 try:
                     img = Image.open(f"./cache/{self.pics[self.pic_index]}")
                 except Image.UnidentifiedImageError:
-                    img = Image.open(f"./cache/nothing.jpg")
+                    img = Image.open("./cache/nothing.jpg")
                 img = img.resize((self.image_view.width(), self.image_view.height()), Image.ANTIALIAS)
                 img.save(f"./cache/{self.pics[self.pic_index]}")
                 return f"./cache/{self.pics[self.pic_index]}", binary
@@ -343,7 +342,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 'Content-Type': 'application/json',
             }
         response = requests.get('http://127.0.0.1:8000/purge_unsaved/',
-                                     headers=headers)
+                                headers=headers)
         if response.status_code == 200:
             self.rescan()
             self.current_pic = "./cache/nothing.jpg"
@@ -358,7 +357,6 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
 def main():
     app = QtWidgets.QApplication(sys.argv)
     wormchan = wormchan_app()
-    signal.signal(signal.SIGINT, lambda *a: sigint_handler(wormchan))
     wormchan.show()
     sys.exit(app.exec_())
 
