@@ -1,8 +1,14 @@
-import sys  # sys нужен для передачи argv в QApplication
 import requests
 import json
 from os import mkdir, remove
-from PyQt5 import QtWidgets, QtGui
+from PyQt5 import QtWidgets, QtWebSockets, QtGui
+from PyQt5.QtCore import (
+    QThread,
+    QObject,
+    pyqtSignal,
+    pyqtSlot,
+    QUrl,
+)
 import app_design  # design file
 from PIL import Image
 from loguru import logger
@@ -10,6 +16,46 @@ from loguru import logger
 
 class MinioError(Exception):
     pass
+
+
+class scrape_socket(QObject):
+    finished = pyqtSignal()
+    task_ready = pyqtSignal()
+
+    def __init__(self, token, username, boards):
+        super().__init__()
+
+        self.client = QtWebSockets.QWebSocket(
+            "", QtWebSockets.QWebSocketProtocol.Version13, None
+        )
+        self.token = token
+        self.boards = boards
+        self.username = username
+        self.client.error.connect(self.error)
+        self.client.textMessageReceived.connect(self.ontextmsgreceived)
+        self.task_status = None
+
+        self.client.open(QUrl(f"ws://127.0.0.1:8000/ws/{self.username}?token={self.token}"))
+        logger.debug("client: sending boards")
+        self.client.sendTextMessage(json.dumps({"boards": self.boards}).encode("utf-8"))
+
+        if self.status == "failed":
+            self.close()
+
+    def ontextmsgreceived(self, message):
+        decoded_message = json.loads(message.decode("utf-8"))
+        if decoded_message.get("status"):
+            logger.info(f"task status: {self.status}")
+            self.status = decoded_message.get("status")
+        else:
+            self.status = "failed"
+
+    def error(self, error_code):
+        logger.debug(f"error code: {error_code}")
+        logger.debug(self.client.errorString())
+
+    def close(self):
+        self.client.close()
 
 
 class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
@@ -28,9 +74,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             mkdir("pepes")
         except FileExistsError:
             pass
-        self.pic_index = (self.load_index()
-                          if self.load_index() is not None
-                          else 0)
+        self.pic_index = self.load_index() if self.load_index() is not None else 0
         self.progressBar.setValue(self.pic_index)
         self.current_pic = "./cache/nothing.jpg"
         self.submit_data.clicked.connect(self.login)
@@ -55,47 +99,49 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
         self.purge_unsaved_btn.clicked.connect(self.purge_unsaved)
 
     def set_states(self):
-        return {"asp": self.asp_checkbox.isChecked(),
-                "vm": self.vm_checkbox.isChecked(),
-                "b": self.b_checkbox.isChecked(),
-                "x": self.x_checkbox.isChecked(),
-                "vrpg": self.vrpg_checkbox.isChecked(),
-                "vip": self.vip_checkbox.isChecked(),
-                "lgbt": self.lgbt_checkbox.isChecked(),
-                "biz": self.biz_checkbox.isChecked(),
-                "co": self.co_checkbox.isChecked(),
-                "an": self.an_checkbox.isChecked(),
-                "int": self.int_checkbox.isChecked(),
-                "fit": self.fit_checkbox.isChecked(),
-                "mlp": self.mlp_checkbox.isChecked(),
-                "p": self.p_checkbox.isChecked(),
-                "ck": self.ck_checkbox.isChecked(),
-                "tvr": self.tvr_checkbox.isChecked(),
-                "his": self.his_checkbox.isChecked(),
-                "tv": self.tv_checkbox.isChecked(),
-                "a": self.a_checkbox.isChecked(),
-                "qst": self.qst_checkbox.isChecked(),
-                "news": self.news_checkbox.isChecked(),
-                "tg": self.tg_checkbox.isChecked(),
-                "wsr": self.wsr_checkbox.isChecked(),
-                "o": self.o_checkbox.isChecked(),
-                "gd": self.gd_checkbox.isChecked(),
-                "diy": self.diy_checkbox.isChecked(),
-                "jp": self.jp_checkbox.isChecked(),
-                "v": self.v_checkbox.isChecked(),
-                "sp": self.sp_checkbox.isChecked(),
-                "s4s": self.s4s_checkbox.isChecked(),
-                "fa": self.fa_checkbox.isChecked(),
-                "mu": self.mu_checkbox.isChecked(),
-                "m": self.m_checkbox.isChecked(),
-                "out": self.out_checkbox.isChecked(),
-                "vmg": self.vmg_checkbox.isChecked(),
-                "g": self.g_checkbox.isChecked(),
-                "lit": self.lit_checkbox.isChecked(),
-                "n": self.n_checkbox.isChecked(),
-                "vr": self.vr_checkbox.isChecked(),
-                "cgi": self.cgi_checkbox.isChecked(),
-                "vst": self.vst_checkbox.isChecked()}
+        return {
+            "asp": self.asp_checkbox.isChecked(),
+            "vm": self.vm_checkbox.isChecked(),
+            "b": self.b_checkbox.isChecked(),
+            "x": self.x_checkbox.isChecked(),
+            "vrpg": self.vrpg_checkbox.isChecked(),
+            "vip": self.vip_checkbox.isChecked(),
+            "lgbt": self.lgbt_checkbox.isChecked(),
+            "biz": self.biz_checkbox.isChecked(),
+            "co": self.co_checkbox.isChecked(),
+            "an": self.an_checkbox.isChecked(),
+            "int": self.int_checkbox.isChecked(),
+            "fit": self.fit_checkbox.isChecked(),
+            "mlp": self.mlp_checkbox.isChecked(),
+            "p": self.p_checkbox.isChecked(),
+            "ck": self.ck_checkbox.isChecked(),
+            "tvr": self.tvr_checkbox.isChecked(),
+            "his": self.his_checkbox.isChecked(),
+            "tv": self.tv_checkbox.isChecked(),
+            "a": self.a_checkbox.isChecked(),
+            "qst": self.qst_checkbox.isChecked(),
+            "news": self.news_checkbox.isChecked(),
+            "tg": self.tg_checkbox.isChecked(),
+            "wsr": self.wsr_checkbox.isChecked(),
+            "o": self.o_checkbox.isChecked(),
+            "gd": self.gd_checkbox.isChecked(),
+            "diy": self.diy_checkbox.isChecked(),
+            "jp": self.jp_checkbox.isChecked(),
+            "v": self.v_checkbox.isChecked(),
+            "sp": self.sp_checkbox.isChecked(),
+            "s4s": self.s4s_checkbox.isChecked(),
+            "fa": self.fa_checkbox.isChecked(),
+            "mu": self.mu_checkbox.isChecked(),
+            "m": self.m_checkbox.isChecked(),
+            "out": self.out_checkbox.isChecked(),
+            "vmg": self.vmg_checkbox.isChecked(),
+            "g": self.g_checkbox.isChecked(),
+            "lit": self.lit_checkbox.isChecked(),
+            "n": self.n_checkbox.isChecked(),
+            "vr": self.vr_checkbox.isChecked(),
+            "cgi": self.cgi_checkbox.isChecked(),
+            "vst": self.vst_checkbox.isChecked(),
+        }
 
     def closeEvent(self, event):
         logger.info("exiting")
@@ -118,20 +164,23 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
         if not self.username:
             self.username = self.login_input.text()
             self.password = self.password_input.text()
-        data = {'grant_type': 'password',
-                'username': self.username,
-                'password': self.password}
-        headers = {
-            'Authorization': 'Basic Og==',
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'application/json, text/plain, */*',
-            'X-Requested-With': 'XMLHttpRequest',
-            'Sec-Fetch-Site': 'same-origin',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Dest': 'empty'
+        data = {
+            "grant_type": "password",
+            "username": self.username,
+            "password": self.password,
         }
-        response = requests.post('http://127.0.0.1:8000/token',
-                                 headers=headers, data=data)
+        headers = {
+            "Authorization": "Basic Og==",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json, text/plain, */*",
+            "X-Requested-With": "XMLHttpRequest",
+            "Sec-Fetch-Site": "same-origin",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Dest": "empty",
+        }
+        response = requests.post(
+            "http://127.0.0.1:8000/token", headers=headers, data=data
+        )
         if response.status_code == 401:
             return
         self.token = response.json().get("access_token")
@@ -155,47 +204,57 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
         email = self.email_field.text()
         nickname = self.nickname_field.text()
         if username and password and email:
-            data = {"username": username,
-                    "password": password,
-                    "email": email,
-                    "full_name": nickname}
-            headers = {
-                'Authorization': 'Basic Og==',
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Accept': 'application/json, text/plain, */*',
-                'X-Requested-With': 'XMLHttpRequest',
-                'Sec-Fetch-Site': 'same-origin',
-                'Sec-Fetch-Mode': 'cors',
-                'Sec-Fetch-Dest': 'empty'
+            data = {
+                "username": username,
+                "password": password,
+                "email": email,
+                "full_name": nickname,
             }
-            response = requests.post('http://127.0.0.1:8000/create_user',
-                                     headers=headers, data=data)
+            headers = {
+                "Authorization": "Basic Og==",
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Accept": "application/json, text/plain, */*",
+                "X-Requested-With": "XMLHttpRequest",
+                "Sec-Fetch-Site": "same-origin",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Dest": "empty",
+            }
+            response = requests.post(
+                "http://127.0.0.1:8000/create_user", headers=headers, data=data
+            )
             if response.status_code == 200:
-                if response.json().get("response") == f"user {username} has been successfully created":
+                if (
+                    response.json().get("response")
+                    == f"user {username} has been created"
+                ):
                     self.switch_to_login()  # switch page
 
     def re_login(self):
-        data = {'grant_type': 'password',
-                'username': self.username,
-                'password': self.password}
-        headers = {
-            'Authorization': 'Basic Og==',
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'application/json, text/plain, */*',
-            'X-Requested-With': 'XMLHttpRequest',
-            'Sec-Fetch-Site': 'same-origin',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Dest': 'empty'
+        data = {
+            "grant_type": "password",
+            "username": self.username,
+            "password": self.password,
         }
-        response = requests.post('http://127.0.0.1:8000/token',
-                                 headers=headers, data=data)
+        headers = {
+            "Authorization": "Basic Og==",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json, text/plain, */*",
+            "X-Requested-With": "XMLHttpRequest",
+            "Sec-Fetch-Site": "same-origin",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Dest": "empty",
+        }
+        response = requests.post(
+            "http://127.0.0.1:8000/token", headers=headers, data=data
+        )
         self.token = response.json().get("access_token")
 
     def rescan(self):
-        headers = {'accept': 'application/json',
-                   'Authorization': f"Bearer {self.token}"}
-        response = requests.get('http://127.0.0.1:8000/get_mem_names/',
-                                headers=headers)
+        headers = {
+            "accept": "application/json",
+            "Authorization": f"Bearer {self.token}",
+        }
+        response = requests.get("http://127.0.0.1:8000/get_mem_names/", headers=headers)
         if response.status_code == 200:
             with open("./cache/piclist.json", "w") as cache:
                 data = response.json()
@@ -214,14 +273,18 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             return
         else:
             headers = {
-                'Authorization': f"Bearer {self.token}",
-                'accept': 'application/json',
-                'Content-Type': 'application/json',
+                "Authorization": f"Bearer {self.token}",
+                "accept": "application/json",
+                "Content-Type": "application/json",
             }
-            params = {'index': self.pic_index}
+            params = {"index": self.pic_index}
             data = json.dumps({"files": self.pics})
-            response = requests.post('http://127.0.0.1:8000/get_mem/',
-                                     headers=headers, params=params, data=data)
+            response = requests.post(
+                "http://127.0.0.1:8000/get_mem/",
+                headers=headers,
+                params=params,
+                data=data,
+            )
             if response.status_code == 200:
                 with open(f"./cache/{self.pics[self.pic_index]}", "wb") as current_pic:
                     current_pic.write(response.content)
@@ -230,7 +293,11 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                     img = Image.open(f"./cache/{self.pics[self.pic_index]}")
                 except Image.UnidentifiedImageError:
                     img = Image.open("./cache/nothing.jpg")
-                img = img.resize((self.image_view.width(), self.image_view.height()), Image.ANTIALIAS)
+                img = img.resize(
+                                (self.image_view.width(),
+                                 self.image_view.height()),
+                                Image.ANTIALIAS
+                                )
                 img.save(f"./cache/{self.pics[self.pic_index]}")
                 return f"./cache/{self.pics[self.pic_index]}", binary
             elif response.status_code == 401:
@@ -238,7 +305,9 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 index, binary = self.get_image()
                 return index, binary
             else:
-                raise MinioError(f"minio error on image retrieval, status code {response.status_code}")
+                raise MinioError(
+                    f"minio error on image retrieval, status code {response.status_code}"
+                )
 
     def get_cached_pic_names(self):
         try:
@@ -298,15 +367,19 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
 
     def remember_boards(self):
         headers = {
-                'Authorization': f"Bearer {self.token}",
-                'accept': 'application/json',
-                'Content-Type': 'application/json',
-            }
-        data = {"boards": [key for key, value in self.set_states().items() if value is True]}
+            "Authorization": f"Bearer {self.token}",
+            "accept": "application/json",
+            "Content-Type": "application/json",
+        }
+        data = {
+            "boards": [key for key, value in self.set_states().items() if value is True]
+        }
         if data.get("boards") != []:
-            response = requests.post('http://127.0.0.1:8000/users/set_relevants/',
-                                     headers=headers,
-                                     data=json.dumps(data))
+            response = requests.post(
+                "http://127.0.0.1:8000/users/set_relevants/",
+                headers=headers,
+                data=json.dumps(data),
+            )
             if response.status_code == 200:
                 self.rescan()
                 return 0
@@ -319,15 +392,17 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
 
     def scrape(self):
         headers = {
-                'Authorization': f"Bearer {self.token}",
-                'accept': 'application/json',
-                'Content-Type': 'application/json',
-            }
-        data = {"boards": [key for key, value in self.set_states().items() if value is True]}
+            "Authorization": f"Bearer {self.token}",
+            "accept": "application/json",
+            "Content-Type": "application/json",
+        }
+        data = {
+            "boards": [key for key, value in self.set_states().items() if value is True]
+        }
         if data.get("boards") != []:
-            response = requests.post('http://127.0.0.1:8000/eat_mems/',
-                                     headers=headers,
-                                     data=json.dumps(data))
+            response = requests.post(
+                "ws://127.0.0.1:8000/eat_mems/", headers=headers, data=json.dumps(data)
+            )
             print(response)
             if response.status_code == 200:
                 return 0
@@ -338,14 +413,25 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                     return 401
         return 0
 
+    def scrape_ws(self):
+        self.socket = scrape_socket(self.token, self.username,
+                                    [key for key, value in
+                                     self.set_states().items()
+                                     if value is True])
+        self.thread = QThread()
+        self.socket.task_ready.connect(self.render_image)
+        self.socket.moveToThread(self.thread)
+        self.socket.finished.connect(self.thread.quit)
+        self.thread.started.connect(self.socket.start)
+        self.thread.start()
+
     def purge_unsaved(self):
         headers = {
-                'Authorization': f"Bearer {self.token}",
-                'accept': 'application/json',
-                'Content-Type': 'application/json',
-            }
-        response = requests.get('http://127.0.0.1:8000/purge_unsaved/',
-                                headers=headers)
+            "Authorization": f"Bearer {self.token}",
+            "accept": "application/json",
+            "Content-Type": "application/json",
+        }
+        response = requests.get("http://127.0.0.1:8000/purge_unsaved/", headers=headers)
         if response.status_code == 200:
             self.rescan()
             self.current_pic = "./cache/nothing.jpg"
@@ -355,13 +441,3 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 return self.purge_unsaved()
             else:
                 return 401
-
-
-def main():
-    app = QtWidgets.QApplication(sys.argv)
-    wormchan = wormchan_app()
-    wormchan.show()
-    sys.exit(app.exec_())
-
-
-main()
