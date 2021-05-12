@@ -19,11 +19,11 @@ from user_utils import (user, token,
                         create_access_token,
                         authenticate_user, create_user,
                         check_email, remove_user,
-                        set_relevants)
+                        set_relevants, parse_user_query)
 
 from consts import ACCESS_TOKEN_EXPIRE_MINUTES
 from workers import eat_mem_task, small_eat_mem_task
-
+from asyncio import sleep as async_sleep
 
 app = FastAPI()
 
@@ -64,25 +64,38 @@ async def eat_mem(board_task: board,
             f"board f'/{board}/', enqueued for user {current_user.username}"}
 
 
-@app.websocket("/ws/{current_user.username}")
-async def websocket_endpoint(websocket: WebSocket, current_user:
-                             user = Depends(get_current_active_user)):
+@app.websocket("/ws/")
+async def websocket_endpoint(websocket: WebSocket,
+                             token: str):
+    try:
+        current_user = await parse_user_query(websocket, token)
+    except HTTPException:
+        return await websocket.close()
+    logger.debug(current_user.username)
     await websocket.accept()
-    raw_msg = await websocket.receive_text()
+    logger.debug("current user accepted")
+    await websocket.send_bytes(json.dumps({"response":
+                                         {"user": current_user.username,
+                                          "status": "connected"}}).encode("utf-8"))
+    logger.debug("connection status sent")
+    raw_msg = await websocket.receive_bytes()
     decoded_msg = json.loads(raw_msg.decode("utf-8"))
-
-    scrape_task = small_eat_mem_task.delay(decoded_msg["boards"],
-                                           current_user.username)
-    await websocket.send_text(json.dumps({"response":
-                                         {"user": current_user.username,
-                                          "status": status}}).encode("utf-8"))
-    result = AsyncResult(scrape_task.id)
-    state = result.state
+    logger.debug(decoded_msg)
+    scrape_task = eat_mem_task.delay(decoded_msg["boards"],
+                                     current_user.username)
+    logger.debug("task enqued")
+    result = eat_mem_task.AsyncResult(scrape_task.id)
+    while not result.ready():
+        await async_sleep(5)
+        result = eat_mem_task.AsyncResult(scrape_task.id)
+        logger.info(result.ready())
+        state = result.status
+        logger.info(state)
+    state = result.status
     logger.info(state)
-    await websocket.send_text(json.dumps({"response":
-                                         {"user": current_user.username,
-                                          "status": status}}).encode("utf-8"))
-    websocket.close(0)
+    await websocket.send_text(state)
+    logger.debug("task status sent")
+    return await websocket.close()
 
 
 @app.post("/eat_mems/")

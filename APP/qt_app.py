@@ -6,7 +6,6 @@ from PyQt5.QtCore import (
     QThread,
     QObject,
     pyqtSignal,
-    pyqtSlot,
     QUrl,
 )
 import app_design  # design file
@@ -31,24 +30,36 @@ class scrape_socket(QObject):
         self.token = token
         self.boards = boards
         self.username = username
-        self.client.error.connect(self.error)
-        self.client.textMessageReceived.connect(self.ontextmsgreceived)
         self.task_status = None
+        self.client.error.connect(self.error)
+        self.client.binaryMessageReceived.connect(self.onbinmsgreceived)
+        self.client.textMessageReceived.connect(self.ontextmsgreceived)
 
-        self.client.open(QUrl(f"ws://127.0.0.1:8000/ws/{self.username}?token={self.token}"))
-        logger.debug("client: sending boards")
-        self.client.sendTextMessage(json.dumps({"boards": self.boards}).encode("utf-8"))
+    def start(self):
+        url = QUrl(f"ws://127.0.0.1:8000/ws/?token={self.token}")
+        self.client.open(url)
 
-        if self.status == "failed":
+        if self.task_status == "failed":
             self.close()
 
-    def ontextmsgreceived(self, message):
-        decoded_message = json.loads(message.decode("utf-8"))
+    def onbinmsgreceived(self, message):
+        decoded_message = json.loads(bytes(message).decode("utf-8"))
+        logger.debug(decoded_message)
         if decoded_message.get("status"):
             logger.info(f"task status: {self.status}")
-            self.status = decoded_message.get("status")
+            self.task_status = decoded_message.get("status")
         else:
-            self.status = "failed"
+            self.task_status = "failed"
+        logger.debug("client: sending boards")
+        self.client.sendBinaryMessage(json.dumps({"boards": self.boards}).encode("utf-8"))
+        logger.debug({"boards": self.boards})
+
+    def ontextmsgreceived(self, message):
+        logger.debug(message)
+        if message == "SUCCESS":
+            self.close()
+            self.task_ready.emit()
+            self.finished.emit()
 
     def error(self, error_code):
         logger.debug(f"error code: {error_code}")
@@ -95,7 +106,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
         self.return_btn.clicked.connect(self.switch_to_images)
 
         self.remember_boards_btn.clicked.connect(self.remember_boards)
-        self.scrape_command_btn.clicked.connect(self.scrape)
+        self.scrape_command_btn.clicked.connect(self.scrape_ws)
         self.purge_unsaved_btn.clicked.connect(self.purge_unsaved)
 
     def set_states(self):
@@ -403,7 +414,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             response = requests.post(
                 "ws://127.0.0.1:8000/eat_mems/", headers=headers, data=json.dumps(data)
             )
-            print(response)
+            logger.info(response)
             if response.status_code == 200:
                 return 0
             elif response.status_code == 401:
@@ -418,12 +429,8 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                                     [key for key, value in
                                      self.set_states().items()
                                      if value is True])
-        self.thread = QThread()
-        self.socket.task_ready.connect(self.render_image)
-        self.socket.moveToThread(self.thread)
-        self.socket.finished.connect(self.thread.quit)
-        self.thread.started.connect(self.socket.start)
-        self.thread.start()
+        self.socket.task_ready.connect(self.rescan)
+        self.socket.start()
 
     def purge_unsaved(self):
         headers = {

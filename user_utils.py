@@ -2,7 +2,7 @@ from pymongo import MongoClient
 from datetime import datetime, timedelta
 from pydantic import BaseModel
 from typing import Optional
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Query, WebSocket
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.exc import UnknownHashError
@@ -66,6 +66,22 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     if user is None:
         raise credentials_exception
     return user
+
+
+async def parse_user_query(websocket: WebSocket,
+                           user_token: Optional[str] = Query(None)):
+    logger.debug(user_token)
+    if user_token is None:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+    try:
+        current_user = await get_current_user(user_token)
+    except AttributeError:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+    try:
+        if get_current_active_user(current_user):
+            return current_user
+    except HTTPException:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
 
 
 async def get_current_active_user(current_user:
