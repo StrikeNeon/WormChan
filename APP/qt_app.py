@@ -1,5 +1,6 @@
 import requests
 import json
+from simplejson.errors import JSONDecodeError
 from os import mkdir, remove
 from PyQt5 import QtWidgets, QtWebSockets, QtGui
 from PyQt5.QtCore import (
@@ -11,7 +12,6 @@ from PyQt5.QtCore import (
 import app_design  # design file
 from PIL import Image
 from loguru import logger
-
 
 class MinioError(Exception):
     pass
@@ -109,6 +109,14 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
         self.scrape_command_btn.clicked.connect(self.scrape_ws)
         self.purge_unsaved_btn.clicked.connect(self.purge_unsaved)
 
+        self.send_saved_btn.clicked.connect(self.send_saved)
+        self.get_saved_btn.clicked.connect(self.get_saved)
+        self.purge_saved_btn.clicked.connect(self.purge_saved)
+
+        self.send_pepes_btn.clicked.connect(self.send_pepes)
+        self.get_pepes_btn.clicked.connect(self.get_pepes)
+        self.purge_pepes_btn.clicked.connect(self.purge_pepes)
+
     def set_states(self):
         return {
             "asp": self.asp_checkbox.isChecked(),
@@ -192,21 +200,30 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
         response = requests.post(
             "http://127.0.0.1:8000/token", headers=headers, data=data
         )
+        logger.debug(f"{response.status_code}")
         if response.status_code == 401:
+            logger.error("access denied")
             return
-        self.token = response.json().get("access_token")
-        self.pics = self.get_cached_pic_names()
-        if not self.pics:
-            self.rescan()
-            self.pics = self.get_cached_pic_names()
-        self.progressBar.setMaximum(len(self.pics))
+        if response.status_code == 404:
+            logger.critical("attempted to access dead link")
+            return
         try:
-            self.current_pic = self.get_image()[0]
-            self.image = QtGui.QPixmap(self.current_pic)
-            self.image_view.setPixmap(self.image)
-            self.switch_to_images()  # switch page
-        except Exception as ex:
-            logger.error(ex)
+            self.token = response.json().get("access_token")
+            self.pics = self.get_cached_pic_names()
+            if not self.pics:
+                self.rescan()
+                self.pics = self.get_cached_pic_names()
+            self.progressBar.setMaximum(len(self.pics))
+            try:
+                self.current_pic = self.get_image()[0]
+                self.image = QtGui.QPixmap(self.current_pic)
+                self.image_view.setPixmap(self.image)
+                self.switch_to_images()  # switch page
+            except Exception as ex:
+                logger.error(ex)
+                return
+        except JSONDecodeError:
+            logger.error("no access token recieved")
             return
 
     def register_user(self):
@@ -442,6 +459,96 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
         if response.status_code == 200:
             self.rescan()
             self.current_pic = "./cache/nothing.jpg"
+            return 0
+        elif response.status_code == 401:
+            if self.re_login():
+                return self.purge_unsaved()
+            else:
+                return 401
+
+    def send_saved(self):
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "accept": "application/json",
+            "Content-Type": "application/json",
+        }
+        response = requests.get("http://127.0.0.1:8000/send_saved/", headers=headers)
+        if response.status_code == 200:
+            return 0
+        elif response.status_code == 401:
+            if self.re_login():
+                return self.purge_unsaved()
+            else:
+                return 401
+
+    def purge_saved(self):
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "accept": "application/json",
+            "Content-Type": "application/json",
+        }
+        response = requests.get("http://127.0.0.1:8000/purge_saved/", headers=headers)
+        if response.status_code == 200:
+            return 0
+        elif response.status_code == 401:
+            if self.re_login():
+                return self.purge_unsaved()
+            else:
+                return 401
+
+    def get_saved(self):
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "accept": "application/json",
+            "Content-Type": "application/json",
+        }
+        response = requests.get("http://127.0.0.1:8000/get_saved/", headers=headers)
+        if response.status_code == 200:
+            return 0
+        elif response.status_code == 401:
+            if self.re_login():
+                return self.purge_unsaved()
+            else:
+                return 401
+
+    def send_pepes(self):
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "accept": "application/json",
+            "Content-Type": "application/json",
+        }
+        response = requests.get("http://127.0.0.1:8000/send_pepes/", headers=headers)
+        if response.status_code == 200:
+            return 0
+        elif response.status_code == 401:
+            if self.re_login():
+                return self.purge_unsaved()
+            else:
+                return 401
+
+    def purge_pepes(self):
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "accept": "application/json",
+            "Content-Type": "application/json",
+        }
+        response = requests.get("http://127.0.0.1:8000/purge_pepes/", headers=headers)
+        if response.status_code == 200:
+            return 0
+        elif response.status_code == 401:
+            if self.re_login():
+                return self.purge_unsaved()
+            else:
+                return 401
+
+    def get_pepes(self):
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "accept": "application/json",
+            "Content-Type": "application/json",
+        }
+        response = requests.get("http://127.0.0.1:8000/get_pepes/", headers=headers)
+        if response.status_code == 200:
             return 0
         elif response.status_code == 401:
             if self.re_login():

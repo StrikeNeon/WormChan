@@ -22,7 +22,7 @@ from user_utils import (user, token,
                         set_relevants, parse_user_query)
 
 from consts import ACCESS_TOKEN_EXPIRE_MINUTES
-from workers import eat_mem_task, small_eat_mem_task
+from workers import eat_mem_task
 from asyncio import sleep as async_sleep
 
 app = FastAPI()
@@ -32,12 +32,10 @@ class task(BaseModel):
     boards: list
 
 
-class board(BaseModel):
-    board: str
-
-
 class file_list(BaseModel):
     files: list
+
+# TODO move most iteratives to either beackgrounds or to celery workers (preferrably, to separate for damage control)
 
 
 @app.get("/full_purge/")
@@ -52,18 +50,6 @@ async def purge_unsaved(current_user: user = Depends(get_current_active_user)):
     return {"response": "unsaved files purged"}
 
 
-@app.post("/eat_mem/")
-async def eat_mem(board_task: board,
-                  current_user: user = Depends(get_current_active_user)):
-    scrape_task = small_eat_mem_task.delay(board_task.board,
-                                           current_user.username)
-    result = AsyncResult(scrape_task.id)
-    state = result.state
-    logger.info(state)
-    return {"response":
-            f"board f'/{board}/', enqueued for user {current_user.username}"}
-
-
 @app.websocket("/ws/")
 async def websocket_endpoint(websocket: WebSocket,
                              token: str):
@@ -75,8 +61,8 @@ async def websocket_endpoint(websocket: WebSocket,
     await websocket.accept()
     logger.debug("current user accepted")
     await websocket.send_bytes(json.dumps({"response":
-                                         {"user": current_user.username,
-                                          "status": "connected"}}).encode("utf-8"))
+                                           {"user": current_user.username,
+                                            "status": "connected"}}).encode("utf-8"))
     logger.debug("connection status sent")
     raw_msg = await websocket.receive_bytes()
     decoded_msg = json.loads(raw_msg.decode("utf-8"))
@@ -144,7 +130,9 @@ async def get_placeholder():
 @app.post("/token", response_model=token)
 async def login_for_access_token(form_data:
                                  OAuth2PasswordRequestForm = Depends()):
+    logger.debug(f"token request recieved {form_data.username}")
     user = authenticate_user(form_data.username, form_data.password)
+    logger.info(f"user {form_data.username} authenticated")
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
