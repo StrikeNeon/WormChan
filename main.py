@@ -137,29 +137,17 @@ async def websocket_endpoint(websocket: WebSocket,
                                      current_user.username)
     logger.debug("task enqued")
     result = eat_mem_task.AsyncResult(scrape_task.id)
+    counter = 1
     while not result.ready():
-        await async_sleep(5)
+        await async_sleep(counter)
         result = eat_mem_task.AsyncResult(scrape_task.id)
-        logger.info(result.ready())
-        state = result.status
-        logger.info(state)
+        logger.info(result.status)
+        counter += 1
     state = result.status
     logger.info(state)
     await websocket.send_text(state)
     logger.debug("task status sent")
     return await websocket.close()
-
-
-@app.post("/eat_mems/")
-async def eat_memes(task: task, current_user:
-                    user = Depends(get_current_active_user)):
-    scrape_task = eat_mem_task.delay(task.boards, current_user.username)
-    result = AsyncResult(scrape_task.id)
-    state = result.state
-    logger.info(state)
-    return {"response":
-            {"user": current_user.username,
-             "status": "finished"}}
 
 
 @app.get("/get_mem_names/")
