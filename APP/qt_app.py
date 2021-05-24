@@ -1,10 +1,11 @@
 import requests
 import json
+from zipfile import ZipFile
 from simplejson.errors import JSONDecodeError
-from os import mkdir, remove
+from os import mkdir, remove, listdir
+from os.path import basename
 from PyQt5 import QtWidgets, QtWebSockets, QtGui
 from PyQt5.QtCore import (
-    QThread,
     QObject,
     pyqtSignal,
     QUrl,
@@ -12,6 +13,7 @@ from PyQt5.QtCore import (
 import app_design  # design file
 from PIL import Image
 from loguru import logger
+
 
 class MinioError(Exception):
     pass
@@ -251,11 +253,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 "http://127.0.0.1:8000/create_user", headers=headers, data=data
             )
             if response.status_code == 200:
-                if (
-                    response.json().get("response")
-                    == f"user {username} has been created"
-                ):
-                    self.switch_to_login()  # switch page
+                self.switch_to_login()  # switch page
 
     def re_login(self):
         data = {
@@ -362,7 +360,10 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             remove(self.current_pic)
         except FileNotFoundError:
             pass
-        self.current_pic = self.get_image()[0]
+        try:
+            self.current_pic = self.get_image()[0]
+        except MinioError:
+            self.current_pic = "./cache/nothing.jpg"
         self.image = QtGui.QPixmap(self.current_pic)
         self.image = QtGui.QPixmap(self.get_image()[0])
         self.image_view.setPixmap(self.image)
@@ -466,18 +467,44 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             else:
                 return 401
 
+    def zip_files(self, dest: str):
+        file_paths = listdir(f"./{dest}")
+        if len(file_paths) != 0:
+            with ZipFile(f'./{dest}/{self.username}_arch_{dest}.zip', 'w') as zip_file:
+                # writing each file one by one
+                while len(file_paths) != 0:
+                    file = file_paths.pop()
+                    if ".zip" not in file:
+                        file_path = f"./{dest}/{file}"
+                        zip_file.write(file_path, basename(file_path))
+                        remove(file_path)
+            return f'./{dest}/{self.username}_arch_{dest}.zip'
+
+    def extract_files(self, dest: str):
+        file_paths = listdir(f"./{dest}")
+        if f"{self.username}_arch_{dest}.zip" in file_paths:
+            with ZipFile(f'./{dest}/{self.username}_arch_{dest}.zip', 'r') as zip_file:
+                zip_file.extractall(f"./{dest}")
+            remove(f'./{dest}/{self.username}_arch_{dest}.zip')
+            return 0
+        else:
+            logger.error("No saved files were found")
+
     def send_saved(self):
+        saved_archive = self.zip_files("saved_pics")
+        with open(saved_archive, "r") as zipfile:
+            archive_data = zipfile.read()
         headers = {
             "Authorization": f"Bearer {self.token}",
             "accept": "application/json",
             "Content-Type": "application/json",
         }
-        response = requests.get("http://127.0.0.1:8000/send_saved/", headers=headers)
+        response = requests.post("http://127.0.0.1:8000/send_saved/", headers=headers, data=archive_data)
         if response.status_code == 200:
             return 0
         elif response.status_code == 401:
             if self.re_login():
-                return self.purge_unsaved()
+                return self.send_saved()
             else:
                 return 401
 
@@ -492,7 +519,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             return 0
         elif response.status_code == 401:
             if self.re_login():
-                return self.purge_unsaved()
+                return self.purge_saved()
             else:
                 return 401
 
@@ -504,25 +531,32 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
         }
         response = requests.get("http://127.0.0.1:8000/get_saved/", headers=headers)
         if response.status_code == 200:
+            print(response)
+            print(response.status_code, response.headers)
+            print(response.content)
+            # zipfile = response.content
             return 0
         elif response.status_code == 401:
             if self.re_login():
-                return self.purge_unsaved()
+                return self.get_saved()
             else:
                 return 401
 
     def send_pepes(self):
+        pepe_archive = self.zip_files("pepes")
+        with open(pepe_archive, "r") as zipfile:
+            archive_data = zipfile.read()
         headers = {
             "Authorization": f"Bearer {self.token}",
             "accept": "application/json",
             "Content-Type": "application/json",
         }
-        response = requests.get("http://127.0.0.1:8000/send_pepes/", headers=headers)
+        response = requests.post("http://127.0.0.1:8000/send_pepes/", headers=headers, data=archive_data)
         if response.status_code == 200:
             return 0
         elif response.status_code == 401:
             if self.re_login():
-                return self.purge_unsaved()
+                return self.send_pepes()
             else:
                 return 401
 
@@ -537,7 +571,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             return 0
         elif response.status_code == 401:
             if self.re_login():
-                return self.purge_unsaved()
+                return self.purge_pepes()
             else:
                 return 401
 
@@ -552,6 +586,6 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             return 0
         elif response.status_code == 401:
             if self.re_login():
-                return self.purge_unsaved()
+                return self.get_pepes()
             else:
                 return 401

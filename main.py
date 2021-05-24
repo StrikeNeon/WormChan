@@ -3,16 +3,20 @@ from typing import Optional
 import json
 from fastapi import (FastAPI, HTTPException,
                      Depends, status,
-                     Response, WebSocket)
+                     Response, WebSocket,
+                     File, UploadFile)
+from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from loguru import logger
 from celery.result import AsyncResult
 # from WormChan import memeater, small_memeater
 
-from minio_utils import (client, get_from_minio,
+from minio_utils import (client, get_from_minio, save_to_minio,
                          list_unsaved_files, purge_all_files,
-                         purge_unsaved_files)
+                         purge_unsaved_files, purge_saved_files, purge_pepes,
+                         extract_saved_files, extract_pepes,
+                         zip_saved_files, zip_pepes)
 
 from user_utils import (user, token,
                         get_current_user, get_current_active_user,
@@ -35,19 +39,81 @@ class task(BaseModel):
 class file_list(BaseModel):
     files: list
 
-# TODO move most iteratives to either beackgrounds or to celery workers (preferrably, to separate for damage control)
+
+# TODO move most iteratives to either beackgrounds or to celery workers
 
 
 @app.get("/full_purge/")
-async def full_purge(current_user: user = Depends(get_current_active_user)):
+async def full_purge(current_user:
+                     user = Depends(get_current_active_user)):
     purge_all_files(current_user.username)
-    return {"response": "all files purged"}
+    return Response(status_code=200)
 
 
+# TODO get from and send to methods
 @app.get("/purge_unsaved/")
-async def purge_unsaved(current_user: user = Depends(get_current_active_user)):
+async def purge_unsaved(current_user:
+                        user = Depends(get_current_active_user)):
     purge_unsaved_files(current_user.username)
-    return {"response": "unsaved files purged"}
+    return Response(status_code=200)
+
+
+@app.get("/purge_saved/")
+async def purge_saved(current_user:
+                      user = Depends(get_current_active_user)):
+    purge_saved_files(current_user.username)
+    return Response(status_code=200)
+
+
+@app.get("/get_pepes/")
+async def get_saved_archive(current_user:
+                            user = Depends(get_current_active_user)):
+    # get file from client
+    extract_saved_files(current_user.username)
+    return Response(status_code=200)
+
+
+@app.get("/send_saved/")
+async def send_saved_archive(current_user:
+                             user = Depends(get_current_active_user)):
+    archive = zip_saved_files(current_user.username)
+    output = get_from_minio(client, f"{current_user.username}_saved", archive)
+    if output:
+        return FileResponse(status_code=200,
+                            path=archive, media_type="application/zip")
+    else:
+        return Response(status_code=500)
+
+
+@app.get("/purge_pepes/")
+async def purge_user_pepes(current_user:
+                           user = Depends(get_current_active_user)):
+    purge_pepes(current_user.username)
+    return Response(status_code=200)
+
+
+@app.get("/get_pepes/")
+async def get_pepe_archive(zipfile: UploadFile = File(...), current_user:
+                           user = Depends(get_current_active_user)):
+    # get file from client
+    await zipfile.read()
+    save_to_minio(client, f"{current_user.username}_pepes",
+                  zipfile.name, zipfile.file,
+                  len(zipfile.file))
+    extract_pepes(current_user.username)
+    return Response(status_code=200)
+
+
+@app.get("/send_pepes/")
+async def send_pepe_archive(current_user:
+                            user = Depends(get_current_active_user)):
+    archive = zip_pepes(current_user.username)
+    output = get_from_minio(client, f"{current_user.username}_pepes", archive)
+    if output:
+        return FileResponse(status_code=200,
+                            path=archive, media_type="application/zip")
+    else:
+        return Response(status_code=500)
 
 
 @app.websocket("/ws/")
@@ -99,21 +165,26 @@ async def eat_memes(task: task, current_user:
 @app.get("/get_mem_names/")
 async def get_mem_names(current_user: user = Depends(get_current_user)):
     output = list_unsaved_files(current_user.username, verbose=True)
-    return {"pics": output[f"{current_user.username}_main"]}
+    return Response(status_code=200,
+                    content={"pics":
+                             output[f"{current_user.username}_main"]})
 
 
 @app.post("/get_mem/")
 async def get_mem(file_list: file_list, index: int = 0,
                   current_user: user = Depends(get_current_active_user)):
     try:
-        output = get_from_minio(client, f"{current_user.username}_main", file_list.files[index])
+        output = get_from_minio(client, f"{current_user.username}_main",
+                                file_list.files[index])
     except IndexError:
         return Response(status_code=500)
     if output:
         if ".png" in file_list.files[index]:
-            return Response(status_code=200, content=output.read(), media_type="image/png")
+            return Response(status_code=200,
+                            content=output.read(), media_type="image/png")
         if ".jpg" in file_list.files[index]:
-            return Response(status_code=200, content=output.read(), media_type="image/jpg")
+            return Response(status_code=200,
+                            content=output.read(), media_type="image/jpg")
     return Response(status_code=404)
 
 
@@ -121,7 +192,8 @@ async def get_mem(file_list: file_list, index: int = 0,
 async def get_placeholder():
     try:
         output = get_from_minio(client, "static", "SORRY_NOTHING.jpg")
-        return Response(status_code=200, content=output.read(), media_type="image/jpg")
+        return Response(status_code=200,
+                        content=output.read(), media_type="image/jpg")
     except Exception as ex:
         logger.error(f"placeholder image retrieval failed with exception {ex}")
         return Response(status_code=500)
@@ -143,7 +215,9 @@ async def login_for_access_token(form_data:
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return Response(status_code=200,
+                    content={"access_token": access_token,
+                             "token_type": "bearer"})
 
 
 @app.get("/users/me/")
@@ -157,7 +231,7 @@ async def set_user_relevants(relevants: task,
                              user = Depends(get_current_active_user)):
     set_relevants(current_user.username, relevants.boards)
     logger.info(f"{current_user} relevants set to {relevants.boards}")
-    return current_user
+    return Response(status_code=200)
 
 
 @app.post("/users/create_user/")
@@ -171,9 +245,9 @@ async def create_new_user(username: str, password: str,
         return {"response": "email is invalid"}
     response = create_user(user_record)
     if response:
-        return {"response": f"user {username} has been created"}
+        return Response(status_code=200)
     else:
-        return {"response": f"user {username} already exists"}
+        return Response(status_code=401)
 
 
 @app.get("/users/delete_me/")
@@ -181,4 +255,5 @@ async def delete_me(username: str, password: str,
                     current_user: user = Depends(get_current_active_user)):
     response = remove_user(username, password, current_user)
     if not response:
-        return {"response": "there was an error deleting you"}
+        return Response(status_code=401)
+    return Response(status_code=200)
