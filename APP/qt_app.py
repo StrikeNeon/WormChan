@@ -1,3 +1,4 @@
+import os
 import requests
 import json
 from zipfile import ZipFile
@@ -207,7 +208,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             logger.error("access denied")
             return
         if response.status_code == 404:
-            logger.critical("attempted to access dead link")
+            logger.critical("attempted to access dead link?")
             return
         try:
             self.token = response.json().get("access_token")
@@ -223,7 +224,10 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 self.switch_to_images()  # switch page
             except Exception as ex:
                 logger.error(ex)
-                return
+                self.current_pic = "./cache/nothing.jpg"
+                self.image = QtGui.QPixmap(self.current_pic)
+                self.image_view.setPixmap(self.image)
+                self.switch_to_images()  # switch page
         except JSONDecodeError:
             logger.error("no access token recieved")
             return
@@ -348,9 +352,12 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 current_pic.write(self.get_image()[1])
             return f"./saved_pics/{self.pics[self.pic_index]}"
         else:
-            with open(f"./pepes/{self.pics[self.pic_index]}", "wb") as current_pic:
-                current_pic.write(self.get_image()[1])
-            return f"./pepes/{self.pics[self.pic_index]}"
+            try:
+                with open(f"./pepes/{self.pics[self.pic_index]}", "wb") as current_pic:
+                    current_pic.write(self.get_image()[1])
+                return f"./pepes/{self.pics[self.pic_index]}"
+            except IndexError:
+                return
 
     def prev_img(self):
         if self.pic_index > 0:
@@ -492,19 +499,17 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
 
     def send_saved(self):
         saved_archive = self.zip_files("saved_pics")
-        with open(saved_archive, "r") as zipfile:
-            archive_data = zipfile.read()
+        files = {'zipfile': (f'{self.username}_arch_saved_pics.zip', open(saved_archive, 'rb').read(), 'application/zip')}
         headers = {
             "Authorization": f"Bearer {self.token}",
             "accept": "application/json",
-            "Content-Type": "application/json",
         }
-        response = requests.post("http://127.0.0.1:8000/send_saved/", headers=headers, data=archive_data)
+        response = requests.post("http://127.0.0.1:8000/get_saved/", headers=headers, files=files)
         if response.status_code == 200:
             return 0
         elif response.status_code == 401:
             if self.re_login():
-                return self.send_saved()
+                return self.send_pepes()
             else:
                 return 401
 
@@ -526,32 +531,31 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
     def get_saved(self):
         headers = {
             "Authorization": f"Bearer {self.token}",
-            "accept": "application/json",
+            "accept": "application/zip",
             "Content-Type": "application/json",
         }
-        response = requests.get("http://127.0.0.1:8000/get_saved/", headers=headers)
+        response = requests.get("http://127.0.0.1:8000/send_saved/", headers=headers)
         if response.status_code == 200:
-            print(response)
-            print(response.status_code, response.headers)
-            print(response.content)
-            # zipfile = response.content
+            with open(f'./saved_pics/{self.username}_arch_saved_pics.zip', "wb") as archive:
+                archive.write(response.content)
+            self.extract_files("saved_pics")
             return 0
         elif response.status_code == 401:
             if self.re_login():
-                return self.get_saved()
+                return self.get_pepes()
             else:
                 return 401
 
     def send_pepes(self):
         pepe_archive = self.zip_files("pepes")
-        with open(pepe_archive, "r") as zipfile:
-            archive_data = zipfile.read()
+        files = {'zipfile': (f'{self.username}_arch_pepes.zip', open(pepe_archive, 'rb').read(), 'application/zip')}
+        statinfo = os.stat(pepe_archive).st_size
         headers = {
             "Authorization": f"Bearer {self.token}",
             "accept": "application/json",
-            "Content-Type": "application/json",
+            "Content-Length": str(statinfo)
         }
-        response = requests.post("http://127.0.0.1:8000/send_pepes/", headers=headers, data=archive_data)
+        response = requests.post("http://127.0.0.1:8000/get_pepes/", headers=headers, files=files)
         if response.status_code == 200:
             return 0
         elif response.status_code == 401:
@@ -578,11 +582,14 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
     def get_pepes(self):
         headers = {
             "Authorization": f"Bearer {self.token}",
-            "accept": "application/json",
+            "accept": "application/zip",
             "Content-Type": "application/json",
         }
-        response = requests.get("http://127.0.0.1:8000/get_pepes/", headers=headers)
+        response = requests.get("http://127.0.0.1:8000/send_pepes/", headers=headers)
         if response.status_code == 200:
+            with open(f'./pepes/{self.username}_arch_pepes.zip', "wb") as archive:
+                archive.write(response.content)
+            self.extract_files("pepes")
             return 0
         elif response.status_code == 401:
             if self.re_login():

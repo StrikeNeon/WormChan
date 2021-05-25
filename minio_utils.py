@@ -116,17 +116,17 @@ def purge_pepes(username: str):
 
 def extract_saved_files(username: str):
     bucket = f"{username}_saved"
-    with ZipFile(f"./BASE/{bucket}/{username}_arch_s.zip", 'r') as zip_file:
+    with ZipFile(f"./BASE/{bucket}/{username}_arch_saved_pics.zip", 'r') as zip_file:
         zip_file.extractall(f"./BASE/{bucket}")
-    remove(f"./BASE/{bucket}/{username}_arch_s.zip")
+    remove(f"./BASE/{bucket}/{username}_arch_saved_pics.zip")
     return {"message": "saved files extracted"}
 
 
 def extract_pepes(username: str):
     bucket = f"{username}_pepes"
-    with ZipFile(f"./BASE/{bucket}/{username}_arch_p.zip", 'r') as zip_file:
+    with ZipFile(f"./BASE/{bucket}/{username}_arch_pepes.zip", 'r') as zip_file:
         zip_file.extractall(f"./BASE/{bucket}")
-    remove(f"./BASE/{bucket}/{username}_arch_p.zip")
+    remove(f"./BASE/{bucket}/{username}_arch_pepes.zip")
     return {"message": "pepes extracted"}
 
 

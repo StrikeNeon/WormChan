@@ -4,12 +4,12 @@ import json
 from fastapi import (FastAPI, HTTPException,
                      Depends, status,
                      Response, WebSocket,
-                     File, UploadFile)
-from fastapi.responses import FileResponse
+                     File, UploadFile,
+                     Request)
+from fastapi.responses import FileResponse, ORJSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from loguru import logger
-from celery.result import AsyncResult
 # from WormChan import memeater, small_memeater
 
 from minio_utils import (client, get_from_minio, save_to_minio,
@@ -18,7 +18,7 @@ from minio_utils import (client, get_from_minio, save_to_minio,
                          extract_saved_files, extract_pepes,
                          zip_saved_files, zip_pepes)
 
-from user_utils import (user, token,
+from user_utils import (user,
                         get_current_user, get_current_active_user,
                         create_access_token,
                         authenticate_user, create_user,
@@ -65,11 +65,14 @@ async def purge_saved(current_user:
     return Response(status_code=200)
 
 
-@app.get("/get_pepes/")
+@app.post("/get_saved/")
 async def get_saved_archive(current_user:
                             user = Depends(get_current_active_user)):
     # get file from client
-    extract_saved_files(current_user.username)
+    try:
+        extract_saved_files(current_user.username)
+    except FileNotFoundError:
+        return Response(status_code=500)
     return Response(status_code=200)
 
 
@@ -92,14 +95,16 @@ async def purge_user_pepes(current_user:
     return Response(status_code=200)
 
 
-@app.get("/get_pepes/")
-async def get_pepe_archive(zipfile: UploadFile = File(...), current_user:
+@app.post("/get_pepes/")
+async def get_pepe_archive(request: Request, zipfile: UploadFile = File(...), current_user:
                            user = Depends(get_current_active_user)):
     # get file from client
-    await zipfile.read()
+    print(zipfile.filename, zipfile.content_type)
+    content = await zipfile.read(-1)
+    print(len(content))
     save_to_minio(client, f"{current_user.username}_pepes",
-                  zipfile.name, zipfile.file,
-                  len(zipfile.file))
+                  zipfile.filename, content,
+                  len(content))
     extract_pepes(current_user.username)
     return Response(status_code=200)
 
@@ -108,10 +113,11 @@ async def get_pepe_archive(zipfile: UploadFile = File(...), current_user:
 async def send_pepe_archive(current_user:
                             user = Depends(get_current_active_user)):
     archive = zip_pepes(current_user.username)
-    output = get_from_minio(client, f"{current_user.username}_pepes", archive)
-    if output:
+    logger.debug(f"{current_user.username} is getting pepes")
+    if archive:
         return FileResponse(status_code=200,
-                            path=archive, media_type="application/zip")
+                            path=f"./BASE/{current_user.username}_pepes/{archive}",
+                            media_type="application/zip")
     else:
         return Response(status_code=500)
 
@@ -142,7 +148,8 @@ async def websocket_endpoint(websocket: WebSocket,
         await async_sleep(counter)
         result = eat_mem_task.AsyncResult(scrape_task.id)
         logger.info(result.status)
-        counter += 1
+        if counter <= 50:
+            counter += 1
     state = result.status
     logger.info(state)
     await websocket.send_text(state)
@@ -150,12 +157,10 @@ async def websocket_endpoint(websocket: WebSocket,
     return await websocket.close()
 
 
-@app.get("/get_mem_names/")
+@app.get("/get_mem_names/", response_class=ORJSONResponse)
 async def get_mem_names(current_user: user = Depends(get_current_user)):
     output = list_unsaved_files(current_user.username, verbose=True)
-    return Response(status_code=200,
-                    content={"pics":
-                             output[f"{current_user.username}_main"]})
+    return {"pics": output[f"{current_user.username}_main"]}
 
 
 @app.post("/get_mem/")
@@ -187,7 +192,7 @@ async def get_placeholder():
         return Response(status_code=500)
 
 
-@app.post("/token", response_model=token)
+@app.post("/token", response_class=ORJSONResponse)
 async def login_for_access_token(form_data:
                                  OAuth2PasswordRequestForm = Depends()):
     logger.debug(f"token request recieved {form_data.username}")
@@ -203,9 +208,8 @@ async def login_for_access_token(form_data:
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
-    return Response(status_code=200,
-                    content={"access_token": access_token,
-                             "token_type": "bearer"})
+    return {"access_token": access_token,
+            "token_type": "bearer"}
 
 
 @app.get("/users/me/")
@@ -222,7 +226,7 @@ async def set_user_relevants(relevants: task,
     return Response(status_code=200)
 
 
-@app.post("/users/create_user/")
+@app.post("/users/create_user/", response_class=ORJSONResponse)
 async def create_new_user(username: str, password: str,
                           email: str, full_name: Optional[str] = None):
     user_record = {"username": username,
@@ -230,12 +234,13 @@ async def create_new_user(username: str, password: str,
                    "email": email,
                    "full_name": full_name if full_name else None}
     if not check_email(email):
-        return {"response": "email is invalid"}
+        return Response(status_code=401, content={"status": "fail",
+                                                  "reason": "invalid email"})
     response = create_user(user_record)
     if response:
-        return Response(status_code=200)
+        return {"status": "success"}
     else:
-        return Response(status_code=401)
+        return {"status": "fail", "reason": "user exists"}
 
 
 @app.get("/users/delete_me/")
