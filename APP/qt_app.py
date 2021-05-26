@@ -291,6 +291,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 data["index"] = 0
                 json.dump(data, cache)
                 self.pic_index = 0
+                self.current_pic = self.get_image()[0]
                 return 0
         elif response.status_code == 401:
             if self.re_login():
