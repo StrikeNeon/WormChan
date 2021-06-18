@@ -68,11 +68,13 @@ async def purge_saved(current_user:
 @app.post("/get_saved/")
 async def get_saved_archive(current_user:
                             user = Depends(get_current_active_user)):
-    # get file from client
     try:
         extract_saved_files(current_user.username)
     except FileNotFoundError:
-        return Response(status_code=500)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="could not find saved file"
+        )
     return Response(status_code=200)
 
 
@@ -85,7 +87,10 @@ async def send_saved_archive(current_user:
         return FileResponse(status_code=200,
                             path=archive, media_type="application/zip")
     else:
-        return Response(status_code=500)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="saved file could not be retrieved"
+        )
 
 
 @app.get("/purge_pepes/")
@@ -119,11 +124,14 @@ async def send_pepe_archive(current_user:
                             path=f"./BASE/{current_user.username}_pepes/{archive}",
                             media_type="application/zip")
     else:
-        return Response(status_code=500)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="pepes could not be archived"
+        )
 
 
-@app.websocket("/ws/")
-async def websocket_endpoint(websocket: WebSocket,
+@app.websocket("/eat_mems/")
+async def eat_mems(websocket: WebSocket,
                              token: str):
     try:
         current_user = await parse_user_query(websocket, token)
@@ -170,7 +178,10 @@ async def get_mem(file_list: file_list, index: int = 0,
         output = get_from_minio(client, f"{current_user.username}_main",
                                 file_list.files[index])
     except IndexError:
-        return Response(status_code=500)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="index greater than images list"
+        )
     if output:
         if ".png" in file_list.files[index]:
             return Response(status_code=200,
@@ -178,7 +189,10 @@ async def get_mem(file_list: file_list, index: int = 0,
         if ".jpg" in file_list.files[index]:
             return Response(status_code=200,
                             content=output.read(), media_type="image/jpg")
-    return Response(status_code=404)
+    raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="could not get file with this index"
+        )
 
 
 @app.get("/get_placeholder/")
@@ -189,7 +203,10 @@ async def get_placeholder():
                         content=output.read(), media_type="image/jpg")
     except Exception as ex:
         logger.error(f"placeholder image retrieval failed with exception {ex}")
-        return Response(status_code=500)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="placeholder image could not be retrieved"
+        )
 
 
 @app.post("/token", response_class=ORJSONResponse)
@@ -234,8 +251,10 @@ async def create_new_user(username: str, password: str,
                    "email": email,
                    "full_name": full_name if full_name else None}
     if not check_email(email):
-        return Response(status_code=401, content={"status": "fail",
-                                                  "reason": "invalid email"})
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="malformed email"
+        )
     response = create_user(user_record)
     if response:
         return {"status": "success"}
@@ -248,5 +267,7 @@ async def delete_me(username: str, password: str,
                     current_user: user = Depends(get_current_active_user)):
     response = remove_user(username, password, current_user)
     if not response:
-        return Response(status_code=401)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN
+        )
     return Response(status_code=200)

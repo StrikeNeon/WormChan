@@ -39,7 +39,7 @@ class scrape_socket(QObject):
         self.client.textMessageReceived.connect(self.ontextmsgreceived)
 
     def start(self):
-        url = QUrl(f"ws://127.0.0.1:8000/ws/?token={self.token}")
+        url = QUrl(f"ws://127.0.0.1:8000/eat_mems/?token={self.token}")
         self.client.open(url)
 
         if self.task_status == "failed":
@@ -426,29 +426,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 else:
                     return 401
         return 0
-
-    def scrape(self):
-        headers = {
-            "Authorization": f"Bearer {self.token}",
-            "accept": "application/json",
-            "Content-Type": "application/json",
-        }
-        data = {
-            "boards": [key for key, value in self.set_states().items() if value is True]
-        }
-        if data.get("boards") != []:
-            response = requests.post(
-                "ws://127.0.0.1:8000/eat_mems/", headers=headers, data=json.dumps(data)
-            )
-            logger.info(response)
-            if response.status_code == 200:
-                return 0
-            elif response.status_code == 401:
-                if self.re_login():
-                    return self.scrape()
-                else:
-                    return 401
-        return 0
+    
 
     def scrape_ws(self):
         self.socket = scrape_socket(self.token, self.username,
