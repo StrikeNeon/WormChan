@@ -7,6 +7,11 @@ from consts import MINIO_CONNECTION, MINIO_ACCESS_KEY, MINIO_SECRET_KEY
 from PIL import Image
 import imagehash
 
+
+class method_error(Exception):
+    pass
+
+
 client = Minio(
         MINIO_CONNECTION,
         access_key=MINIO_ACCESS_KEY,
@@ -31,10 +36,17 @@ def get_from_minio(bucketname, filename):
         return None
 
 
-def compute_image_hash(bucketname, filename):
-    content = get_from_minio(bucketname, filename)
-    image_hash = imagehash.average_hash(Image.open(BytesIO(content.read())))
-    return image_hash
+def compute_image_hash(bucketname, filename, method, hash_size=8):
+    if method not in ["avg_hash", "p_hash", "diff_hash"]:
+        content = get_from_minio(bucketname, filename)
+        hash_dict = {"avg_hash": imagehash.average_hash(Image.open(BytesIO(content.read())), hash_size), 
+                     "p_hash": imagehash.phash(Image.open(BytesIO(content.read())), hash_size),
+                     "diff_hash": imagehash.dhash(Image.open(BytesIO(content.read())), hash_size),
+                     }
+        image_hash = hash_dict.get(method)
+        return image_hash
+    else:
+        raise method_error
 
 
 def remove_from_minio(client, bucket, filename):
