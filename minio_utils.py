@@ -4,6 +4,8 @@ from os.path import basename
 from io import BytesIO
 from zipfile import ZipFile
 from consts import MINIO_CONNECTION, MINIO_ACCESS_KEY, MINIO_SECRET_KEY
+from PIL import Image
+import imagehash
 
 client = Minio(
         MINIO_CONNECTION,
@@ -13,7 +15,7 @@ client = Minio(
     )
 
 
-def save_to_minio(client, bucket, filename, data, file_size):
+def save_to_minio(bucket, filename, data, file_size):
     try:
         client.put_object(
                 bucket, filename, BytesIO(data), file_size,
@@ -22,11 +24,17 @@ def save_to_minio(client, bucket, filename, data, file_size):
         return None
 
 
-def get_from_minio(client, bucketname, filename):
+def get_from_minio(bucketname, filename):
     try:
         return client.get_object(bucketname, filename)
     except error.S3Error:
         return None
+
+
+def compute_image_hash(bucketname, filename):
+    content = get_from_minio(bucketname, filename)
+    image_hash = imagehash.average_hash(Image.open(BytesIO(content.read())))
+    return image_hash
 
 
 def remove_from_minio(client, bucket, filename):

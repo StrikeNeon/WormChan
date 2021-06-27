@@ -16,6 +16,7 @@ client = MongoClient('127.0.0.1:27017')
 
 db = client['pic_random']
 collection = db['faces']
+hash_collection = db['pic_hashes']
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -140,6 +141,20 @@ def create_user(user_dict: dict):
                             email: {user_dict['email']}, \
                             saved in collection under id {post_id}")
     return True
+
+
+def add_imhash_to_db(hash_str: str, username: str):
+    hashes = hash_collection.find({"username": username})
+    hash_list = hashes.get("hash_db", None)
+    if not hash_list:
+        hash_collection.update_one({"username": username}, {"$set": {"hash_db": [hash_str]}})
+    #  this is where the search algo should be
+    #  TODO similar hash search algo
+    if hash_str not in hash_list:
+        hash_list.append(hash_str)
+        hash_collection.update_one({"username": username}, {"$set": {"hash_db": hash_list }})
+    else:
+        return
 
 
 def unban_user(username: str):

@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from loguru import logger
 # from WormChan import memeater, small_memeater
 
-from minio_utils import (client, get_from_minio, save_to_minio,
+from minio_utils import (get_from_minio, save_to_minio,
                          list_unsaved_files, purge_all_files,
                          purge_unsaved_files, purge_saved_files, purge_pepes,
                          extract_saved_files, extract_pepes,
@@ -82,7 +82,7 @@ async def get_saved_archive(current_user:
 async def send_saved_archive(current_user:
                              user = Depends(get_current_active_user)):
     archive = zip_saved_files(current_user.username)
-    output = get_from_minio(client, f"{current_user.username}_saved", archive)
+    output = get_from_minio(f"{current_user.username}_saved", archive)
     if output:
         return FileResponse(status_code=200,
                             path=archive, media_type="application/zip")
@@ -107,7 +107,7 @@ async def get_pepe_archive(request: Request, zipfile: UploadFile = File(...), cu
     print(zipfile.filename, zipfile.content_type)
     content = await zipfile.read(-1)
     print(len(content))
-    save_to_minio(client, f"{current_user.username}_pepes",
+    save_to_minio(f"{current_user.username}_pepes",
                   zipfile.filename, content,
                   len(content))
     extract_pepes(current_user.username)
@@ -175,7 +175,7 @@ async def get_mem_names(current_user: user = Depends(get_current_user)):
 async def get_mem(file_list: file_list, index: int = 0,
                   current_user: user = Depends(get_current_active_user)):
     try:
-        output = get_from_minio(client, f"{current_user.username}_main",
+        output = get_from_minio(f"{current_user.username}_main",
                                 file_list.files[index])
     except IndexError:
         raise HTTPException(
@@ -198,7 +198,7 @@ async def get_mem(file_list: file_list, index: int = 0,
 @app.get("/get_placeholder/")
 async def get_placeholder():
     try:
-        output = get_from_minio(client, "static", "SORRY_NOTHING.jpg")
+        output = get_from_minio("static", "SORRY_NOTHING.jpg")
         return Response(status_code=200,
                         content=output.read(), media_type="image/jpg")
     except Exception as ex:
