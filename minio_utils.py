@@ -36,6 +36,12 @@ def get_from_minio(bucketname, filename):
         return None
 
 
+def hammingDist(hash_1, hash_2):
+    #  Calculated Hamming distance of two pictures
+    assert len(hash_1) == len(hash_2)
+    return sum([char_1 != char_2 for char_1, char_2 in zip(hash_1, hash_2)])
+
+
 def compute_image_hash(bucketname, filename, method, hash_size=8):
     if method not in ["avg_hash", "p_hash", "diff_hash"]:
         content = get_from_minio(bucketname, filename)
