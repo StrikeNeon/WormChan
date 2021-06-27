@@ -148,11 +148,13 @@ def add_imhash_to_db(hash_str: str, username: str):
     hash_list = hashes.get("hash_db", None)
     if not hash_list:
         hash_collection.update_one({"username": username}, {"$set": {"hash_db": [hash_str]}})
+        return True
     #  this is where the search algo should be
     #  TODO similar hash search algo
     if hash_str not in hash_list:
         hash_list.append(hash_str)
         hash_collection.update_one({"username": username}, {"$set": {"hash_db": hash_list }})
+        return True
     else:
         return
 
