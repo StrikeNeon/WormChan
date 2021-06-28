@@ -142,21 +142,37 @@ def create_user(user_dict: dict):
     return True
 
 
-def add_imhash_to_db(hash_str: str, username: str, distant: bool):
-    if distant:
-        hash_collection = db['dist_pic_hashes']
-    else:
-        hash_collection = db['gen_pic_hashes']
+def add_imhash_to_db(hash_str: str, filename: str, username: str, method: str, distant: bool):
+    hash_collection = db['pic_hashes']
     hashes = hash_collection.find_one({"username": username})
     if not hashes:
-        hash_collection.insert_one({"username": username, "hash_db": [hash_str]})
+        if distant:
+            hash_collection.insert_one({"username": username, "avg_hash_db": [{filename: hash_str}]})
+        else:
+            hash_collection.insert_one({"username": username, f"{method}_db": [{filename: hash_str}]})
         return True
     #  this is where the search algo should be
     #  TODO similar hash search algo
-    hash_list = hashes["hash_db"]
+    if distant:
+        try:
+            hash_list = hashes["avg_hash_db"]
+        except KeyError:
+            hash_collection.update_one({"username": username}, {"$set": {"avg_hash_db": [{filename: hash_str}]}})
+            return True
+        if hash_str not in hash_list:
+            hash_list.append({filename: hash_str})
+            hash_collection.update_one({"username": username}, {"$set": {"avg_hash_db": hash_list}})
+            return True
+        else:
+            return
+    try:
+        hash_list = hashes[f"{method}_db"]
+    except KeyError:
+        hash_collection.update_one({"username": username}, {"$set": {f"{method}_db": [{filename: hash_str}]}})
+        return True
     if hash_str not in hash_list:
-        hash_list.append(hash_str)
-        hash_collection.update_one({"username": username}, {"$set": {"hash_db": hash_list }})
+        hash_list.append({filename: hash_str})
+        hash_collection.update_one({"username": username}, {"$set": {f"{method}_db": hash_list}})
         return True
     else:
         return

@@ -313,35 +313,38 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             }
             params = {"index": self.pic_index}
             data = json.dumps({"files": self.pics})
-            response = requests.post(
-                "http://127.0.0.1:8000/get_mem/",
-                headers=headers,
-                params=params,
-                data=data,
-            )
-            if response.status_code == 200:
-                with open(f"./cache/{self.pics[self.pic_index]}", "wb") as current_pic:
-                    current_pic.write(response.content)
-                    binary = response.content
-                try:
-                    img = Image.open(f"./cache/{self.pics[self.pic_index]}")
-                except Image.UnidentifiedImageError:
-                    img = Image.open("./cache/nothing.jpg")
-                img = img.resize(
-                                (self.image_view.width(),
-                                 self.image_view.height()),
-                                Image.ANTIALIAS
-                                )
-                img.save(f"./cache/{self.pics[self.pic_index]}")
-                return f"./cache/{self.pics[self.pic_index]}", binary
-            elif response.status_code == 401:
-                self.re_login()
-                index, binary = self.get_image()
-                return index, binary
-            else:
-                raise MinioError(
-                    f"minio error on image retrieval, status code {response.status_code}"
+            try:
+                response = requests.post(
+                    "http://127.0.0.1:8000/get_mem/",
+                    headers=headers,
+                    params=params,
+                    data=data,
                 )
+                if response.status_code == 200:
+                    with open(f"./cache/{self.pics[self.pic_index]}", "wb") as current_pic:
+                        current_pic.write(response.content)
+                        binary = response.content
+                    try:
+                        img = Image.open(f"./cache/{self.pics[self.pic_index]}")
+                    except Image.UnidentifiedImageError:
+                        img = Image.open("./cache/nothing.jpg")
+                    img = img.resize(
+                                    (self.image_view.width(),
+                                    self.image_view.height()),
+                                    Image.ANTIALIAS
+                                    )
+                    img.save(f"./cache/{self.pics[self.pic_index]}")
+                    return f"./cache/{self.pics[self.pic_index]}", binary
+                elif response.status_code == 401:
+                    self.re_login()
+                    index, binary = self.get_image()
+                    return index, binary
+                else:
+                    raise MinioError(
+                        f"minio error on image retrieval, status code {response.status_code}"
+                    )
+            except requests.exceptions.ConnectionError:
+                return "./cache/nothing.jpg"
 
     def get_cached_pic_names(self):
         try:
@@ -387,7 +390,10 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             remove(self.current_pic)
         except FileNotFoundError:
             pass
-        self.current_pic = self.get_image()[0]
+        try:
+            self.current_pic = self.get_image()[0]
+        except MinioError:
+            self.current_pic = "./cache/nothing.jpg"
         self.image = QtGui.QPixmap(self.current_pic)
         self.image_view.setPixmap(self.image)
 

@@ -60,13 +60,16 @@ def download(boardNAME, post, user, hashing_method):
                 content_pic = requests.get(image_url).content
                 image_hash = compute_image_hash(content_pic, hashing_method)
                 distant_image_hash = compute_image_hash(content_pic, "avg_hash")
-                hash_added = add_imhash_to_db(str(image_hash), user, distant=False)
-                distant_hash_added = add_imhash_to_db(str(distant_image_hash), user, distant=True)
+                hash_added = add_imhash_to_db(str(image_hash), f'{tim}', user, hashing_method, distant=False)
+                distant_hash_added = add_imhash_to_db(str(distant_image_hash), f'{tim}', user, "avg_hash", distant=True)
                 logger.debug(f"hashes added: close {hash_added}, distant {distant_hash_added}, hashes: close {image_hash}, distant {distant_image_hash}")
-                if hash_added:
-                    save_to_minio(f"{user}_main",
+                if distant_hash_added:
+                    save_to_minio(f"RARE",
                                   f'{tim+ext}', content_pic,
                                   len(content_pic))
+                save_to_minio(f"{user}_main",
+                                f'{tim+ext}', content_pic,
+                                len(content_pic))
         else:
             return
     except TypeError as ex:
