@@ -10,15 +10,15 @@ celery = Celery('wormchan_tasks', broker=f'amqp://{RABBITMQ_USER}:{RABBITMQ_PASS
 celery.conf.update(task_track_started=True,
                    worker_concurrency=1,
                    result_backend='mongodb://127.0.0.1:27017/',
-                   mongodb_backend_settings={'database': 'mydb',
-                                             'taskmeta_collection': 'my_taskmeta_collection'})
+                   mongodb_backend_settings={'database': 'pic_random',
+                                             'taskmeta_collection': 'taskmeta_collection'})
 celery_log = get_task_logger(__name__)
 
 
 @celery.task()
-def eat_mem_task(boards, username):
+def eat_mem_task(boards, username, hashing_method):
     memeater([f"/{board}/" for board in
               boards if board in glob_boards],
-             username)
+             username, hashing_method)
     celery_log.info(f"scrape of boards {boards} started for {username}")
     return {"message": f"{username} scrape of boards {boards} complete"}

@@ -148,7 +148,7 @@ async def eat_mems(websocket: WebSocket,
     decoded_msg = json.loads(raw_msg.decode("utf-8"))
     logger.debug(decoded_msg)
     scrape_task = eat_mem_task.delay(decoded_msg["boards"],
-                                     current_user.username)
+                                     current_user.username, "diff_hash")
     logger.debug("task enqued")
     result = eat_mem_task.AsyncResult(scrape_task.id)
     counter = 1

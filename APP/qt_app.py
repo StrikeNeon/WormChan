@@ -208,7 +208,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
             logger.error("access denied")
             return
         if response.status_code == 404:
-            logger.critical("attempted to access dead link?")
+            logger.critical("error loggin in, 404, contact the admin and tell him to unblomck port)")
             return
         try:
             self.token = response.json().get("access_token")
@@ -291,8 +291,11 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 data["index"] = 0
                 json.dump(data, cache)
                 self.pic_index = 0
-                self.current_pic = self.get_image()[0]
-                return 0
+                try:
+                    self.current_pic = self.get_image()[0]
+                    return 0
+                except TypeError:
+                    self.current_pic = "./cache/nothing.jpg"
         elif response.status_code == 401:
             if self.re_login():
                 return self.rescan()
@@ -426,7 +429,6 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 else:
                     return 401
         return 0
-    
 
     def scrape_ws(self):
         self.socket = scrape_socket(self.token, self.username,
