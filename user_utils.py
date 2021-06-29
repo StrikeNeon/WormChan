@@ -143,7 +143,6 @@ def create_user(user_dict: dict):
 
 
 def add_imhash_to_db(hash_str: str, filename: str, username: str, method: str, board_name:str, distant: bool):
-    # TODO add key:value board to docs
     hash_collection = db['pic_hashes']
     hashes = hash_collection.find_one({"username": username})
     if not hashes:
