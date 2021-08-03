@@ -216,5 +216,5 @@ def remove_user(username: str, password: str, current_user: user):
 
 
 def check_email(email: str):
-    regex = '^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w+$'
+    regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
     return re.search(regex, email)

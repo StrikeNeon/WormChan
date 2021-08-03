@@ -1,3 +1,4 @@
+import uvicorn
 from datetime import timedelta
 from typing import Optional
 import json
@@ -38,6 +39,12 @@ class task(BaseModel):
 
 class file_list(BaseModel):
     files: list
+
+class user_model(BaseModel):
+    username: str
+    password: str
+    email: str
+    full_name: Optional[str] = None
 
 
 # TODO move most iteratives to either beackgrounds or to celery workers
@@ -214,7 +221,7 @@ async def login_for_access_token(form_data:
                                  OAuth2PasswordRequestForm = Depends()):
     logger.debug(f"token request recieved {form_data.username}")
     user = authenticate_user(form_data.username, form_data.password)
-    logger.info(f"user {form_data.username} authenticated")
+    logger.info(f"user {form_data.username} authenticated" if user else f"user {form_data.username} not authenticated")
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -244,13 +251,13 @@ async def set_user_relevants(relevants: task,
 
 
 @app.post("/users/create_user/", response_class=ORJSONResponse)
-async def create_new_user(username: str, password: str,
-                          email: str, full_name: Optional[str] = None):
-    user_record = {"username": username,
-                   "password": password,
-                   "email": email,
-                   "full_name": full_name if full_name else None}
-    if not check_email(email):
+async def create_new_user(new_user: user_model):
+    user_record = {"username": new_user.username,
+                   "password": new_user.password,
+                   "email": new_user.email,
+                   "full_name": new_user.full_name if new_user.full_name else None}
+    print(new_user.email, check_email(new_user.email))
+    if not check_email(new_user.email):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="malformed email"
@@ -271,3 +278,7 @@ async def delete_me(username: str, password: str,
             status_code=status.HTTP_403_FORBIDDEN
         )
     return Response(status_code=200)
+
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True, log_level="info")

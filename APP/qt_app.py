@@ -183,9 +183,8 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
         self.app_pages.setCurrentIndex(3)
 
     def login(self):
-        if not self.username:
-            self.username = self.login_input.text()
-            self.password = self.password_input.text()
+        self.username = self.login_input.text()
+        self.password = self.password_input.text()
         data = {
             "grant_type": "password",
             "username": self.username,
@@ -254,7 +253,7 @@ class wormchan_app(QtWidgets.QMainWindow, app_design.Ui_MainWindow):
                 "Sec-Fetch-Dest": "empty",
             }
             response = requests.post(
-                "http://127.0.0.1:8000/create_user", headers=headers, data=data
+                "http://127.0.0.1:8000/users/create_user", headers=headers, data=data
             )
             if response.status_code == 200:
                 self.switch_to_login()  # switch page
