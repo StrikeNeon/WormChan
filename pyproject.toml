@@ -17,7 +17,7 @@ typing = "^3.7.4"
 minio = "^7.0.1"
 
 [tool.poetry.dev-dependencies]
-black = "^20.8b1"
+black = "^24.3"
 flake8 = "^3.8.4"
 
 [build-system]
